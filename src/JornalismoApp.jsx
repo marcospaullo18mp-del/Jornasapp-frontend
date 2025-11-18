@@ -236,7 +236,7 @@ const FontesView = memo(({ filteredFontes, searchTermFontes, setSearchTermFontes
             {modalType === 'pauta' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Título *</label>
+                  <label className="block text-sm font-medium mb-1">Retranca *</label>
                   <input
                     type="text"
                     value={formData.titulo || ''}
@@ -246,7 +246,7 @@ const FontesView = memo(({ filteredFontes, searchTermFontes, setSearchTermFontes
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Descrição</label>
+                  <label className="block text-sm font-medium mb-1">Lead</label>
                   <textarea
                     value={formData.descricao || ''}
                     onChange={(e) => onUpdateField('descricao', e.target.value)}
@@ -552,7 +552,8 @@ const JornalismoApp = () => {
       <div className="bg-gradient-to-r from-jorna-600 to-jorna-700 text-white p-4 shadow-lg">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <h1 className="text-xl font-bold flex items-center gap-2">
-            📰 JornaApp
+            <img src="/logo-jornasa.png" alt="Jornasa" className="w-8 h-8 rounded-full bg-white p-1" />
+            <span className="sr-only">JornaApp</span>
           </h1>
           <button className="hover:bg-jorna-500 p-2 rounded-full transition">
             <Bell size={22} />
