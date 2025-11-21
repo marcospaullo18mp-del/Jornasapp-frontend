@@ -1464,7 +1464,7 @@ const JornalismoApp = () => {
               <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Olá, amorecos!</h1>
               <p className="text-xs md:text-sm text-white/80">Bem-vindo(a) de volta.</p>
             </div>
-            <div className="flex items-center justify-end gap-3 w-1/3 md:w-auto">
+            <div className="flex items-center justify-end gap-3 w-1/4 md:w-auto">
               <div className="relative">
                   <button
                     ref={notificationButtonRef}
