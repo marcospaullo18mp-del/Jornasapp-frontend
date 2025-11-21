@@ -201,7 +201,7 @@ const ChatbotView = memo(({ messages, chatInput, onInputChange, onSendMessage, l
   <div className="p-4 pb-20">
     <div className="mb-6 text-center">
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white shadow-md mb-3">
-        <img src="/avatarchat.png" alt="JornaBot" className="w-full h-full object-cover rounded-full" />
+        <img src="/avatarchat.png" alt="JornaIA" className="w-full h-full object-cover rounded-full" />
       </div>
       <h1 className="text-2xl font-bold text-jorna-brown">JornaIA</h1>
       <p className="text-gray-600 text-sm">Seu assistente para organizar pautas, fontes e insights em tempo real.</p>
@@ -215,7 +215,7 @@ const ChatbotView = memo(({ messages, chatInput, onInputChange, onSendMessage, l
               message.role === 'user' ? 'bg-jorna-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none border'
             }`}>
               {message.role === 'bot' && (
-                <p className="text-xs font-semibold text-jorna-600 mb-1">JornaBot</p>
+                <p className="text-xs font-semibold text-jorna-600 mb-1">JornaIA</p>
               )}
               {message.pending ? (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -600,7 +600,7 @@ const JornalismoApp = () => {
     {
       id: 1,
       role: 'bot',
-      content: formatBotResponseText('Olá! Sou o JornaBot. Posso ajudar a estruturar pautas, sugerir fontes ou organizar seu workflow. Em que posso ajudar hoje?'),
+      content: formatBotResponseText('Olá, amorecos! Sou o JornaIA. Posso ajudar a estruturar pautas, sugerir fontes ou organizar seu workflow. Em que posso ajudar hoje?'),
       isHTML: true
     }
   ]);
@@ -1454,8 +1454,8 @@ const JornalismoApp = () => {
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-20">
       <div className="bg-gradient-to-r from-jorna-600 to-jorna-700 text-white p-4 shadow-lg">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="flex flex-row items-center justify-between text-center gap-3 md:gap-6 md:flex-row md:items-center md:justify-between md:text-left">
-            <div className="flex items-center justify-start w-1/4 md:w-auto md:pl-4">
+          <div className="flex flex-row items-center justify-between text-center gap-3 md:gap-6 md:items-center md:justify-between md:text-center">
+            <div className="flex items-center justify-start w-1/4 md:w-1/4 md:pl-4">
               <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center">
                 <img src="/2.png" alt="Jornasa" className="w-full h-full object-contain" />
               </div>
@@ -1464,7 +1464,7 @@ const JornalismoApp = () => {
               <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Olá, amorecos!</h1>
               <p className="text-xs md:text-sm text-white/80">Bem-vindo(a) de volta.</p>
             </div>
-            <div className="flex items-center justify-end gap-3 w-1/4 md:w-auto">
+            <div className="flex items-center justify-end gap-3 w-1/4 md:w-1/4">
               <div className="relative">
                   <button
                     ref={notificationButtonRef}
@@ -1628,7 +1628,7 @@ const JornalismoApp = () => {
             className={`flex flex-col items-center p-2 rounded-lg transition ${currentView === 'chatbot' ? 'text-jorna-600 bg-jorna-50' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <MessageCircle size={24} />
-            <span className="text-xs mt-1 font-medium">Chatbot</span>
+            <span className="text-xs mt-1 font-medium">Chat Inteligente</span>
           </button>
           <button
             onClick={() => {setCurrentView('fontes'); setSearchTermFontes('');}}
