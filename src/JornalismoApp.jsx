@@ -1628,7 +1628,7 @@ const JornalismoApp = () => {
             className={`flex flex-col items-center p-2 rounded-lg transition ${currentView === 'chatbot' ? 'text-jorna-600 bg-jorna-50' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <MessageCircle size={24} />
-            <span className="text-xs mt-1 font-medium">Chat Inteligente</span>
+            <span className="text-xs mt-1 font-medium">Chat IA</span>
           </button>
           <button
             onClick={() => {setCurrentView('fontes'); setSearchTermFontes('');}}
