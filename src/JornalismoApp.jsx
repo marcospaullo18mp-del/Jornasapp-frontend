@@ -1454,9 +1454,9 @@ const JornalismoApp = () => {
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-20">
       <div className="bg-gradient-to-r from-jorna-600 to-jorna-700 text-white p-4 shadow-lg">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="flex flex-col gap-6 text-center md:flex-row md:items-center md:justify-between md:text-left">
-            <div className="flex items-center justify-center md:justify-start w-full md:w-auto md:pl-4">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center">
+          <div className="flex flex-row items-center justify-between text-center gap-3 md:gap-6 md:flex-row md:items-center md:justify-between md:text-left">
+            <div className="flex items-center justify-start w-1/4 md:w-auto md:pl-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center">
                 <img src="/2.png" alt="Jornasa" className="w-full h-full object-contain" />
               </div>
             </div>
@@ -1464,7 +1464,7 @@ const JornalismoApp = () => {
               <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Olá, amorecos!</h1>
               <p className="text-xs md:text-sm text-white/80">Bem-vindo(a) de volta.</p>
             </div>
-            <div className="flex items-center justify-center md:justify-end gap-4 w-full md:w-auto">
+            <div className="flex items-center justify-end gap-3 w-1/3 md:w-auto">
               <div className="relative">
                   <button
                     ref={notificationButtonRef}
