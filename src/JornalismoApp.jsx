@@ -67,6 +67,28 @@ const mockUsers = [
 ];
 const STORAGE_KEY = 'jornabot:user';
 const CURRENT_USER_KEY = 'jernasa:user';
+const makeUserKey = (userId, suffix) => `jornabot:${suffix}:${userId}`;
+const getDefaultPautas = () => ([
+  { id: 1, titulo: 'Reportagem sobre educação', deadline: '2025-10-25', status: 'em-andamento', descricao: 'Investigar situação das escolas públicas' },
+  { id: 2, titulo: 'Matéria política local', deadline: '2025-10-22', status: 'pendente', descricao: 'Cobertura da sessão da câmara' }
+]);
+const getDefaultFontes = () => ([
+  { id: 1, nome: 'Dr. João Silva', cargo: 'Secretário de Educação', contato: 'joao@gov.br', categoria: 'Educação', oficial: true },
+  { id: 2, nome: 'Maria Santos', cargo: 'Presidente ONG', contato: '(11) 99999-9999', categoria: 'Social', oficial: false }
+]);
+const getDefaultTemplates = () => ([
+  { id: 1, nome: 'Matéria Padrão', conteudo: 'TÍTULO:\n\nLINE:\n\nLEAD (quem, o quê, quando, onde, como, por quê):\n\nDESENVOLVIMENTO:\n\nCONCLUSÃO:' },
+  { id: 2, nome: 'Roteiro VT', conteudo: 'CABEÇA:\n\nOFF 1:\n\nSONORA 1:\n\nOFF 2:\n\nIMAGENS:\n\nENCERRAMENTO:' },
+  { id: 3, nome: 'Nota Oficial', conteudo: 'TÍTULO:\n\nTEXTO (factual e objetivo):\n\nFONTE:\n\nDATA:' }
+]);
+const getDefaultChatMessages = () => ([
+  {
+    id: 1,
+    role: 'bot',
+    content: formatBotResponseText('Olá, amorecos! Sou o JornaIA. Posso ajudar a estruturar pautas, sugerir fontes ou organizar seu workflow. Em que posso ajudar hoje?'),
+    isHTML: true
+  }
+]);
 
 const HomeView = memo(({ filteredPautas, searchTermPautas, onSearchTermPautasChange, filterStatus, onFilterStatusChange, getDaysUntilDeadline, getStatusColor, openModal, deletePauta }) => (
   <div className="p-4 pb-24 sm:pb-20">
@@ -541,19 +563,9 @@ const JornalismoApp = () => {
   const [authName, setAuthName] = useState('');
   const [authError, setAuthError] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
-  const [pautas, setPautas] = useState([
-    { id: 1, titulo: 'Reportagem sobre educação', deadline: '2025-10-25', status: 'em-andamento', descricao: 'Investigar situação das escolas públicas' },
-    { id: 2, titulo: 'Matéria política local', deadline: '2025-10-22', status: 'pendente', descricao: 'Cobertura da sessão da câmara' }
-  ]);
-  const [fontes, setFontes] = useState([
-    { id: 1, nome: 'Dr. João Silva', cargo: 'Secretário de Educação', contato: 'joao@gov.br', categoria: 'Educação', oficial: true },
-    { id: 2, nome: 'Maria Santos', cargo: 'Presidente ONG', contato: '(11) 99999-9999', categoria: 'Social', oficial: false }
-  ]);
-  const [templates, setTemplates] = useState([
-    { id: 1, nome: 'Matéria Padrão', conteudo: 'TÍTULO:\n\nLINE:\n\nLEAD (quem, o quê, quando, onde, como, por quê):\n\nDESENVOLVIMENTO:\n\nCONCLUSÃO:' },
-    { id: 2, nome: 'Roteiro VT', conteudo: 'CABEÇA:\n\nOFF 1:\n\nSONORA 1:\n\nOFF 2:\n\nIMAGENS:\n\nENCERRAMENTO:' },
-    { id: 3, nome: 'Nota Oficial', conteudo: 'TÍTULO:\n\nTEXTO (factual e objetivo):\n\nFONTE:\n\nDATA:' }
-  ]);
+  const [pautas, setPautas] = useState(getDefaultPautas);
+  const [fontes, setFontes] = useState(getDefaultFontes);
+  const [templates, setTemplates] = useState(getDefaultTemplates);
   const [guias] = useState([
     { id: 1, titulo: 'Como Verificar Fontes', conteudo: '1. Cheque credenciais\n2. Busque fontes oficiais\n3. Cruzar informações\n4. Verificar histórico' },
     { id: 2, titulo: 'Técnicas de Entrevista', conteudo: '1. Prepare perguntas\n2. Escuta ativa\n3. Perguntas abertas\n4. Follow-up' },
@@ -598,12 +610,7 @@ const JornalismoApp = () => {
   const [copiedTemplateId, setCopiedTemplateId] = useState(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [chatMessages, setChatMessages] = useState([
-    {
-      id: 1,
-      role: 'bot',
-      content: formatBotResponseText('Olá, amorecos! Sou o JornaIA. Posso ajudar a estruturar pautas, sugerir fontes ou organizar seu workflow. Em que posso ajudar hoje?'),
-      isHTML: true
-    }
+    ...getDefaultChatMessages()
   ]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -666,6 +673,40 @@ const JornalismoApp = () => {
       localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
+
+  const loadUserData = useCallback((userId) => {
+    if (!userId) return;
+    try {
+      const savedPautas = localStorage.getItem(makeUserKey(userId, 'pautas'));
+      setPautas(savedPautas ? JSON.parse(savedPautas) : getDefaultPautas());
+
+      const savedFontes = localStorage.getItem(makeUserKey(userId, 'fontes'));
+      setFontes(savedFontes ? JSON.parse(savedFontes) : getDefaultFontes());
+
+      const savedTemplates = localStorage.getItem(makeUserKey(userId, 'templates'));
+      setTemplates(savedTemplates ? JSON.parse(savedTemplates) : getDefaultTemplates());
+
+      const savedChat = localStorage.getItem(makeUserKey(userId, 'chat'));
+      setChatMessages(savedChat ? JSON.parse(savedChat) : getDefaultChatMessages());
+    } catch (error) {
+      console.warn('Nao foi possivel carregar dados do usuario', error);
+      setPautas(getDefaultPautas());
+      setFontes(getDefaultFontes());
+      setTemplates(getDefaultTemplates());
+      setChatMessages(getDefaultChatMessages());
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      loadUserData(currentUser.id);
+    } else {
+      setPautas(getDefaultPautas());
+      setFontes(getDefaultFontes());
+      setTemplates(getDefaultTemplates());
+      setChatMessages(getDefaultChatMessages());
+    }
+  }, [currentUser, loadUserData]);
 
   const updateField = useCallback((field, value) => {
     setFormData(prev => ({...prev, [field]: value}));
@@ -840,6 +881,42 @@ const JornalismoApp = () => {
       }
     };
   }, [handleGoogleCredential]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try {
+      localStorage.setItem(makeUserKey(currentUser.id, 'pautas'), JSON.stringify(pautas));
+    } catch (error) {
+      console.warn('Nao foi possivel salvar pautas', error);
+    }
+  }, [pautas, currentUser]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try {
+      localStorage.setItem(makeUserKey(currentUser.id, 'fontes'), JSON.stringify(fontes));
+    } catch (error) {
+      console.warn('Nao foi possivel salvar fontes', error);
+    }
+  }, [fontes, currentUser]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try {
+      localStorage.setItem(makeUserKey(currentUser.id, 'templates'), JSON.stringify(templates));
+    } catch (error) {
+      console.warn('Nao foi possivel salvar templates', error);
+    }
+  }, [templates, currentUser]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try {
+      localStorage.setItem(makeUserKey(currentUser.id, 'chat'), JSON.stringify(chatMessages));
+    } catch (error) {
+      console.warn('Nao foi possivel salvar chat', error);
+    }
+  }, [chatMessages, currentUser]);
 
   const handleAuthSubmit = useCallback((event) => {
     event?.preventDefault?.();
