@@ -209,7 +209,7 @@ const FontesView = memo(({ filteredFontes, searchTermFontes, setSearchTermFontes
   </div>
 ));
 
-const ChatbotView = memo(({ messages, chatInput, onInputChange, onSendMessage, loading }) => (
+const ChatbotView = memo(({ messages, chatInput, onInputChange, onSendMessage, onNewChat, loading }) => (
   <div className="p-4 pb-20">
     <div className="mb-6 text-center">
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white shadow-md mb-3">
@@ -217,6 +217,15 @@ const ChatbotView = memo(({ messages, chatInput, onInputChange, onSendMessage, l
       </div>
       <h1 className="text-2xl font-bold text-jorna-brown">JornaIA</h1>
       <p className="text-gray-600 text-sm">Seu assistente para organizar pautas, fontes e insights em tempo real.</p>
+      <div className="mt-3 flex justify-center">
+        <button
+          onClick={onNewChat}
+          className="text-sm text-jorna-600 font-semibold px-3 py-1.5 rounded-full border border-jorna-200 hover:bg-jorna-50 transition"
+          type="button"
+        >
+          Nova conversa
+        </button>
+      </div>
     </div>
 
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col min-h-[60vh]">
@@ -1750,6 +1759,7 @@ const JornalismoApp = () => {
             chatInput={chatInput}
             onInputChange={handleChatInputChange}
             onSendMessage={sendChatMessage}
+            onNewChat={() => setChatMessages(getDefaultChatMessages())}
             loading={chatLoading}
           />
         )}
