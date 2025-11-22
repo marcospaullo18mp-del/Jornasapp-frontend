@@ -68,19 +68,9 @@ const mockUsers = [
 const STORAGE_KEY = 'jornabot:user';
 const CURRENT_USER_KEY = 'jernasa:user';
 const makeUserKey = (userId, suffix) => `jornabot:${suffix}:${userId}`;
-const getDefaultPautas = () => ([
-  { id: 1, titulo: 'Reportagem sobre educação', deadline: '2025-10-25', status: 'em-andamento', descricao: 'Investigar situação das escolas públicas' },
-  { id: 2, titulo: 'Matéria política local', deadline: '2025-10-22', status: 'pendente', descricao: 'Cobertura da sessão da câmara' }
-]);
-const getDefaultFontes = () => ([
-  { id: 1, nome: 'Dr. João Silva', cargo: 'Secretário de Educação', contato: 'joao@gov.br', categoria: 'Educação', oficial: true },
-  { id: 2, nome: 'Maria Santos', cargo: 'Presidente ONG', contato: '(11) 99999-9999', categoria: 'Social', oficial: false }
-]);
-const getDefaultTemplates = () => ([
-  { id: 1, nome: 'Matéria Padrão', conteudo: 'TÍTULO:\n\nLINE:\n\nLEAD (quem, o quê, quando, onde, como, por quê):\n\nDESENVOLVIMENTO:\n\nCONCLUSÃO:' },
-  { id: 2, nome: 'Roteiro VT', conteudo: 'CABEÇA:\n\nOFF 1:\n\nSONORA 1:\n\nOFF 2:\n\nIMAGENS:\n\nENCERRAMENTO:' },
-  { id: 3, nome: 'Nota Oficial', conteudo: 'TÍTULO:\n\nTEXTO (factual e objetivo):\n\nFONTE:\n\nDATA:' }
-]);
+const getDefaultPautas = () => [];
+const getDefaultFontes = () => [];
+const getDefaultTemplates = () => [];
 const getDefaultChatMessages = () => ([
   {
     id: 1,
