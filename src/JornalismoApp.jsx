@@ -1062,8 +1062,14 @@ const JornalismoApp = () => {
   const renderChatHistory = () => {
     if (!showChatHistory) return null;
     return (
-      <div className="fixed inset-0 bg-black/30 z-40 flex items-start justify-center p-4">
-        <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+      <div
+        className="fixed inset-0 bg-black/30 z-40 flex items-start justify-center p-4"
+        onClick={() => setShowChatHistory(false)}
+      >
+        <div
+          className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b">
             <h3 className="text-lg font-semibold text-jorna-brown">Histórico de conversas</h3>
             <button onClick={() => setShowChatHistory(false)} className="text-sm text-gray-500 hover:text-gray-700">Fechar</button>
