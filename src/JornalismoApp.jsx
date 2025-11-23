@@ -79,6 +79,14 @@ const getDefaultChatMessages = () => ([
     isHTML: true
   }
 ]);
+const buildChatTitle = (messages = []) => {
+  const firstUser = messages.find(m => m.role === 'user');
+  if (firstUser?.content) {
+    const text = typeof firstUser.content === 'string' ? firstUser.content : '';
+    return text.slice(0, 50) || 'Conversa';
+  }
+  return 'Conversa';
+};
 
 const HomeView = memo(({ filteredPautas, searchTermPautas, onSearchTermPautasChange, filterStatus, onFilterStatusChange, getDaysUntilDeadline, getStatusColor, openModal, deletePauta }) => (
   <div className="p-4 pb-24 sm:pb-20">
@@ -209,7 +217,7 @@ const FontesView = memo(({ filteredFontes, searchTermFontes, setSearchTermFontes
   </div>
 ));
 
-const ChatbotView = memo(({ messages, chatInput, onInputChange, onSendMessage, onNewChat, loading }) => (
+const ChatbotView = memo(({ messages, chatInput, onInputChange, onSendMessage, onNewChat, onOpenHistory, historyCount, loading }) => (
   <div className="p-4 pb-20">
     <div className="mb-6 text-center">
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white shadow-md mb-3">
@@ -217,13 +225,20 @@ const ChatbotView = memo(({ messages, chatInput, onInputChange, onSendMessage, o
       </div>
       <h1 className="text-2xl font-bold text-jorna-brown">JornaIA</h1>
       <p className="text-gray-600 text-sm">Seu assistente para organizar pautas, fontes e insights em tempo real.</p>
-      <div className="mt-3 flex justify-center">
+      <div className="mt-3 flex justify-center gap-2">
         <button
           onClick={onNewChat}
           className="text-sm text-jorna-600 font-semibold px-3 py-1.5 rounded-full border border-jorna-200 hover:bg-jorna-50 transition"
           type="button"
         >
           Nova conversa
+        </button>
+        <button
+          onClick={onOpenHistory}
+          className="text-sm text-gray-700 font-medium px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50 transition"
+          type="button"
+        >
+          Histórico {historyCount > 0 ? `(${historyCount})` : ''}
         </button>
       </div>
     </div>
@@ -611,6 +626,8 @@ const JornalismoApp = () => {
   const [chatMessages, setChatMessages] = useState([
     ...getDefaultChatMessages()
   ]);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [showChatHistory, setShowChatHistory] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
 
@@ -687,12 +704,16 @@ const JornalismoApp = () => {
 
       const savedChat = localStorage.getItem(makeUserKey(userId, 'chat'));
       setChatMessages(savedChat ? JSON.parse(savedChat) : getDefaultChatMessages());
+
+      const savedHistory = localStorage.getItem(makeUserKey(userId, 'chatHistory'));
+      setChatHistory(savedHistory ? JSON.parse(savedHistory) : []);
     } catch (error) {
       console.warn('Nao foi possivel carregar dados do usuario', error);
       setPautas(getDefaultPautas());
       setFontes(getDefaultFontes());
       setTemplates(getDefaultTemplates());
       setChatMessages(getDefaultChatMessages());
+      setChatHistory([]);
     }
   }, []);
 
@@ -917,6 +938,15 @@ const JornalismoApp = () => {
     }
   }, [chatMessages, currentUser]);
 
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try {
+      localStorage.setItem(makeUserKey(currentUser.id, 'chatHistory'), JSON.stringify(chatHistory));
+    } catch (error) {
+      console.warn('Nao foi possivel salvar histórico de chat', error);
+    }
+  }, [chatHistory, currentUser]);
+
   const handleAuthSubmit = useCallback((event) => {
     event?.preventDefault?.();
     if (isRegistering) {
@@ -994,6 +1024,58 @@ const JornalismoApp = () => {
   const handleChatInputChange = useCallback((value) => {
     setChatInput(value);
   }, []);
+
+  const handleNewChat = useCallback(() => {
+    if (chatMessages.length > 1) {
+      const title = buildChatTitle(chatMessages);
+      const conversation = {
+        id: Date.now(),
+        title,
+        createdAt: new Date().toISOString(),
+        messages: chatMessages
+      };
+      setChatHistory(prev => [conversation, ...prev]);
+    }
+    setChatMessages(getDefaultChatMessages());
+    setChatInput('');
+  }, [chatMessages]);
+
+  const handleOpenChatFromHistory = useCallback((conversation) => {
+    if (!conversation) return;
+    setChatMessages(conversation.messages || getDefaultChatMessages());
+    setShowChatHistory(false);
+  }, []);
+
+  const renderChatHistory = () => {
+    if (!showChatHistory) return null;
+    return (
+      <div className="fixed inset-0 bg-black/30 z-40 flex items-start justify-center p-4">
+        <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b">
+            <h3 className="text-lg font-semibold text-jorna-brown">Histórico de conversas</h3>
+            <button onClick={() => setShowChatHistory(false)} className="text-sm text-gray-500 hover:text-gray-700">Fechar</button>
+          </div>
+          <div className="max-h-[60vh] overflow-y-auto">
+            {chatHistory.length === 0 && (
+              <div className="px-4 py-6 text-center text-sm text-gray-500">Nenhuma conversa salva.</div>
+            )}
+            {chatHistory.map(conv => (
+              <button
+                key={conv.id}
+                onClick={() => handleOpenChatFromHistory(conv)}
+                className="w-full text-left px-4 py-3 border-b last:border-b-0 hover:bg-jorna-50 flex items-start gap-3"
+              >
+                <div className="flex-1">
+                  <p className="font-semibold text-jorna-brown">{conv.title || 'Conversa'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{new Date(conv.createdAt).toLocaleString()}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const sendChatMessage = useCallback(() => {
     const trimmed = chatInput.trim();
@@ -1759,7 +1841,9 @@ const JornalismoApp = () => {
             chatInput={chatInput}
             onInputChange={handleChatInputChange}
             onSendMessage={sendChatMessage}
-            onNewChat={() => setChatMessages(getDefaultChatMessages())}
+            onNewChat={handleNewChat}
+            onOpenHistory={() => setShowChatHistory(true)}
+            historyCount={chatHistory.length}
             loading={chatLoading}
           />
         )}
