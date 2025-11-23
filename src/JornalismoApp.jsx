@@ -1524,7 +1524,7 @@ const JornalismoApp = () => {
             <div className="flex items-center justify-center">
               <img src="/3.png" alt="Jornasa" className="w-24 h-24 object-contain" />
             </div>
-            <h1 className="text-2xl font-bold text-jorna-brown text-center">Bem-vindo ao Jornasa</h1>
+            <h1 className="text-2xl font-bold text-jorna-brown text-center">Bem-vindo ao JornasaApp</h1>
             <p className="text-gray-600 text-center text-sm">Acesse sua conta para gerenciar pautas e fontes.</p>
           </div>
 
@@ -1650,7 +1650,7 @@ const JornalismoApp = () => {
                 {showNotifications && (
                   <div
                     ref={notificationPanelRef}
-                    className="absolute left-1/2 -translate-x-1/2 top-full mt-4 w-[92vw] max-w-sm sm:w-72 bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 md:left-auto md:right-0 md:translate-x-0 md:mt-3 md:w-72 md:max-w-xs"
+                    className="absolute left-1/2 -translate-x-1/2 top-full mt-4 w-[90vw] max-w-xs sm:w-72 bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 md:left-auto md:right-0 md:translate-x-0 md:mt-3 md:w-72 md:max-w-xs"
                   >
                     <div className="flex items-center justify-between px-4 py-3 border-b">
                       <span className="font-semibold text-jorna-brown">Notificações</span>
@@ -1715,7 +1715,7 @@ const JornalismoApp = () => {
                 {showProfileMenu && (
                   <div
                     ref={profilePanelRef}
-                    className="absolute left-1/2 -translate-x-1/2 top-full mt-4 w-[92vw] max-w-sm sm:w-72 bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 md:left-auto md:right-0 md:translate-x-0 md:mt-3 md:w-72 md:max-w-xs"
+                    className="absolute left-1/2 -translate-x-1/2 top-full mt-4 w-[90vw] max-w-xs sm:w-72 bg-white text-gray-800 rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-50 md:left-auto md:right-0 md:translate-x-0 md:mt-3 md:w-72 md:max-w-xs"
                   >
                     <div className="px-4 py-3 border-b bg-jorna-50">
                       <p className="text-sm text-gray-500">Logado como</p>
