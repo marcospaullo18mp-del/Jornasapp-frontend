@@ -124,38 +124,50 @@ const HomeView = memo(({ filteredPautas, searchTermPautas, onSearchTermPautasCha
       </div>
     </div>
 
-    <div className="space-y-4">
-      {filteredPautas.map(pauta => {
-        const daysLeft = getDaysUntilDeadline(pauta.deadline);
-        return (
-          <div key={pauta.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-jorna-500">
-            <div className="flex justify-between items-start mb-2 gap-3 flex-col sm:flex-row">
-              <h3 className="font-semibold text-lg flex-1">{pauta.titulo}</h3>
-              <div className="flex gap-2 ml-0 sm:ml-2">
-                <button onClick={() => openModal('pauta', pauta)} className="text-jorna-500 hover:text-jorna-700">
-                  <Edit2 size={18} />
-                </button>
-                <button onClick={() => deletePauta(pauta.id)} className="text-red-500 hover:text-red-700">
-                  <Trash2 size={18} />
-                </button>
+    {filteredPautas.length === 0 ? (
+      <div className="bg-white rounded-2xl shadow p-6 text-center border border-dashed border-gray-200">
+        <p className="text-sm text-gray-600">Nenhuma pauta por aqui.</p>
+        <button
+          onClick={() => openModal('pauta')}
+          className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-jorna-600 text-white rounded-lg hover:bg-jorna-700 transition text-sm"
+        >
+          <Plus size={16} /> Criar primeira pauta
+        </button>
+      </div>
+    ) : (
+      <div className="space-y-4">
+        {filteredPautas.map(pauta => {
+          const daysLeft = getDaysUntilDeadline(pauta.deadline);
+          return (
+            <div key={pauta.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-jorna-500">
+              <div className="flex justify-between items-start mb-2 gap-3 flex-col sm:flex-row">
+                <h3 className="font-semibold text-lg flex-1">{pauta.titulo}</h3>
+                <div className="flex gap-2 ml-0 sm:ml-2">
+                  <button onClick={() => openModal('pauta', pauta)} className="text-jorna-500 hover:text-jorna-700" aria-label="Editar pauta">
+                    <Edit2 size={18} />
+                  </button>
+                  <button onClick={() => deletePauta(pauta.id)} className="text-red-500 hover:text-red-700" aria-label="Excluir pauta">
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </div>
-            </div>
-            <p className="text-gray-600 text-sm mb-3 break-words">{pauta.descricao}</p>
-            <div className="flex justify-between items-center flex-wrap gap-2 flex-col sm:flex-row">
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(pauta.status)}`}>
-                {pauta.status.replace('-', ' ')}
-              </span>
-              <div className="flex items-center gap-2 text-sm">
-                <Clock size={16} className={daysLeft <= 2 ? 'text-red-500' : 'text-gray-500'} />
-                <span className={daysLeft <= 2 ? 'text-red-500 font-semibold' : 'text-gray-600'}>
-                  {daysLeft > 0 ? `${daysLeft} dias` : daysLeft === 0 ? 'Hoje!' : 'Atrasado'}
+              <p className="text-gray-600 text-sm mb-3 break-words">{pauta.descricao}</p>
+              <div className="flex justify-between items-center flex-wrap gap-2 flex-col sm:flex-row">
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(pauta.status)}`}>
+                  {pauta.status.replace('-', ' ')}
                 </span>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock size={16} className={daysLeft <= 2 ? 'text-red-500' : 'text-gray-500'} />
+                  <span className={daysLeft <= 2 ? 'text-red-500 font-semibold' : 'text-gray-600'}>
+                    {daysLeft > 0 ? `${daysLeft} dias` : daysLeft === 0 ? 'Hoje!' : 'Atrasado'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+    )}
 
     <button
       onClick={() => openModal('pauta')}
@@ -182,39 +194,51 @@ const FontesView = memo(({ filteredFontes, searchTermFontes, setSearchTermFontes
       </div>
     </div>
 
-    <div className="space-y-3">
-      {filteredFontes.map(fonte => (
-        <div key={fonte.id} className="bg-white rounded-lg shadow p-4">
-          <div className="flex justify-between items-start mb-2 gap-2 flex-col sm:flex-row">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-semibold">{fonte.nome}</h3>
-                {fonte.oficial && (
-                  <span className="bg-jorna-100 text-jorna-800 text-xs px-2 py-0.5 rounded">
-                    Oficial
-                  </span>
-                )}
+    {filteredFontes.length === 0 ? (
+      <div className="bg-white rounded-2xl shadow p-6 text-center border border-dashed border-gray-200">
+        <p className="text-sm text-gray-600">Nenhuma fonte cadastrada.</p>
+        <button
+          onClick={() => openModal('fonte')}
+          className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-jorna-600 text-white rounded-lg hover:bg-jorna-700 transition text-sm"
+        >
+          <Plus size={16} /> Adicionar fonte
+        </button>
+      </div>
+    ) : (
+      <div className="space-y-3">
+        {filteredFontes.map(fonte => (
+          <div key={fonte.id} className="bg-white rounded-lg shadow p-4">
+            <div className="flex justify-between items-start mb-2 gap-2 flex-col sm:flex-row">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold">{fonte.nome}</h3>
+                  {fonte.oficial && (
+                    <span className="bg-jorna-100 text-jorna-800 text-xs px-2 py-0.5 rounded">
+                      Oficial
+                    </span>
+                  )}
+                </div>
+                <p className="text-gray-600 text-sm mt-1">{fonte.cargo}</p>
               </div>
-              <p className="text-gray-600 text-sm mt-1">{fonte.cargo}</p>
+              <div className="flex gap-2 ml-0 sm:ml-2">
+                <button onClick={() => openModal('fonte', fonte)} className="text-jorna-500 hover:text-jorna-700" aria-label="Editar fonte">
+                  <Edit2 size={18} />
+                </button>
+                <button onClick={() => deleteFonte(fonte.id)} className="text-red-500 hover:text-red-700" aria-label="Excluir fonte">
+                  <Trash2 size={18} />
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2 ml-0 sm:ml-2">
-              <button onClick={() => openModal('fonte', fonte)} className="text-jorna-500 hover:text-jorna-700">
-                <Edit2 size={18} />
-              </button>
-              <button onClick={() => deleteFonte(fonte.id)} className="text-red-500 hover:text-red-700">
-                <Trash2 size={18} />
-              </button>
+            <div className="text-sm text-gray-700 mt-2">
+              <p className="mb-1">📞 {fonte.contato}</p>
+              <span className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                {fonte.categoria}
+              </span>
             </div>
           </div>
-          <div className="text-sm text-gray-700 mt-2">
-            <p className="mb-1">📞 {fonte.contato}</p>
-            <span className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-              {fonte.categoria}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    )}
 
     <button
       onClick={() => openModal('fonte')}
@@ -652,6 +676,7 @@ const JornalismoApp = () => {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [buscarWeb, setBuscarWeb] = useState(false);
+  const [uiAlert, setUiAlert] = useState(null);
 
   const buildConversationContext = useCallback(() => {
     const recent = chatMessages
