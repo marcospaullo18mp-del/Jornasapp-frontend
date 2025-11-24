@@ -12,7 +12,8 @@ const officialDomainSuffixes = [
   '.tc.br'
 ];
 
-const ACOLHEIA_API_URL = import.meta.env.VITE_ACOLHEIA_API_URL || 'https://benjamin-hourless-francene.ngrok-free.dev';
+// Base do backend publicado (ajuste VITE_ACOLHEIA_API_URL no .env para outro ambiente)
+const ACOLHEIA_API_URL = import.meta.env.VITE_ACOLHEIA_API_URL || 'https://usual-crista-12ba-8e4b7103.koyeb.app/mensagem';
 const ACOLHEIA_API_KEY = import.meta.env.VITE_ACOLHEIA_KEY || '';
 
 const stripHtml = (text = '') =>
@@ -1241,7 +1242,7 @@ const JornalismoApp = () => {
         }
         console.error('Erro ao enviar mensagem para o backend:', error);
         finalizeMessage(
-          formatBotResponseText('Ops! Não consegui falar com o backend agora. Verifique se o servidor em http://localhost:8000 está ativo.'),
+          formatBotResponseText('Não consegui falar com o serviço agora. Confira a URL da API e tente novamente.'),
           true
         );
       }
