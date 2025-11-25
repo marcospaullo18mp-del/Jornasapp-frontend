@@ -2061,6 +2061,7 @@ const JornalismoApp = () => {
         onSaveTemplate={saveTemplate}
       />
       {renderChatHistory()}
+      <Toast alert={uiAlert} onClose={() => setUiAlert(null)} />
     </div>
   );
 };
