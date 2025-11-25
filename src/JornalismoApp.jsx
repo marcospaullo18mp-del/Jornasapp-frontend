@@ -19,6 +19,7 @@ const officialDomainSuffixes = [
 // Base do backend publicado (ajuste VITE_ACOLHEIA_API_URL no .env para outro ambiente)
 const ACOLHEIA_API_URL = import.meta.env.VITE_ACOLHEIA_API_URL || 'https://usual-crista-12ba-8e4b7103.koyeb.app/mensagem';
 const ACOLHEIA_API_KEY = import.meta.env.VITE_ACOLHEIA_KEY || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://usual-crista-12ba-8e4b7103.koyeb.app';
 
 const stripHtml = (text = '') =>
   text
@@ -829,6 +830,14 @@ const JornalismoApp = () => {
     }
   }, [currentUser, currentChatId, ensureConversation, loadMessagesForConversation]);
 
+  const fetchNotifications = useCallback(async (userId) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (ACOLHEIA_API_KEY) headers['x-jornasa-key'] = ACOLHEIA_API_KEY;
+    const resp = await fetch(`${API_BASE_URL}/notificacoes?user_id=${encodeURIComponent(userId)}`, { headers });
+    if (!resp.ok) throw new Error(`Erro ao carregar notificações: ${resp.status}`);
+    return await resp.json();
+  }, []);
+
   const loadUserData = useCallback(async (userId) => {
     if (!userId) return;
     try {
@@ -849,8 +858,8 @@ const JornalismoApp = () => {
       setCurrentChatId(conversaAtual?.id || Date.now());
       await loadMessagesForConversation(conversaAtual);
 
-      const savedNotifications = localStorage.getItem(makeUserKey(userId, 'notifications'));
-      setNotifications(savedNotifications ? JSON.parse(savedNotifications) : getDefaultNotifications());
+      const fetchedNotifications = await fetchNotifications(userId);
+      setNotifications(fetchedNotifications || getDefaultNotifications());
       setLoadingPautas(false);
     } catch (error) {
       console.warn('Nao foi possivel carregar dados do usuario', error);
@@ -1049,15 +1058,6 @@ const JornalismoApp = () => {
       }
     };
   }, [handleGoogleCredential]);
-
-  useEffect(() => {
-    if (!currentUser?.id) return;
-    try {
-      localStorage.setItem(makeUserKey(currentUser.id, 'notifications'), JSON.stringify(notifications));
-    } catch (error) {
-      console.warn('Nao foi possivel salvar notificacoes', error);
-    }
-  }, [notifications, currentUser]);
 
   const handleAuthSubmit = useCallback((event) => {
     event?.preventDefault?.();
