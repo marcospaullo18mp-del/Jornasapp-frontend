@@ -707,6 +707,7 @@ const JornalismoApp = () => {
   const [chatLoading, setChatLoading] = useState(false);
   const [buscarWeb, setBuscarWeb] = useState(false);
   const [uiAlert, setUiAlert] = useState(null);
+  const [theme, setTheme] = useState('light');
   useEffect(() => {
     if (!uiAlert) return;
     const timer = setTimeout(() => setUiAlert(null), 3500);
@@ -765,6 +766,13 @@ const JornalismoApp = () => {
         if (parsed && parsed.email) {
           setCurrentUser(parsed);
         }
+      }
+      const storedTheme = localStorage.getItem('jornasa:theme');
+      if (storedTheme === 'dark') {
+        setTheme('dark');
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
       }
     } catch (error) {
       console.warn('Nao foi possivel carregar usuario salvo', error);
@@ -1360,6 +1368,19 @@ const JornalismoApp = () => {
   const toggleProfileMenu = useCallback(() => {
     setShowProfileMenu(prev => !prev);
     setShowNotifications(false);
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      if (next === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      localStorage.setItem('jornasa:theme', next);
+      return next;
+    });
   }, []);
 
   const copyTemplateToClipboard = useCallback(async (template) => {

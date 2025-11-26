@@ -9,3 +9,46 @@ html, body, #root {
 body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
 }
+
+:root {
+  --bg: #f8f8f8;
+  --card: #ffffff;
+  --text: #1f2937;
+  --border: #e5e7eb;
+}
+
+.dark {
+  --bg: #0f172a;
+  --card: #1f2937;
+  --text: #e5e7eb;
+  --border: #2d3748;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.dark .bg-white {
+  background-color: var(--card) !important;
+  color: var(--text) !important;
+}
+
+.dark .text-gray-600,
+.dark .text-gray-700,
+.dark .text-gray-800 {
+  color: #e5e7eb !important;
+}
+
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: var(--border) !important;
+}
+
+.dark .shadow,
+.dark .shadow-lg,
+.dark .shadow-xl,
+.dark .shadow-2xl {
+  --tw-shadow-color: rgba(0,0,0,0.45);
+}
