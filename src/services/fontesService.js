@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient';
 
 export async function loadFontes(userId) {
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from('fontes')
     .select('*')
@@ -11,6 +12,7 @@ export async function loadFontes(userId) {
 }
 
 export async function criarFonte(userId, payload) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { data, error } = await supabase
     .from('fontes')
     .insert([{ user_id: userId, ...payload }])
@@ -21,6 +23,7 @@ export async function criarFonte(userId, payload) {
 }
 
 export async function atualizarFonte(id, userId, payload) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { data, error } = await supabase
     .from('fontes')
     .update(payload)
@@ -33,6 +36,7 @@ export async function atualizarFonte(id, userId, payload) {
 }
 
 export async function deletarFonte(id, userId) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { error } = await supabase
     .from('fontes')
     .delete()

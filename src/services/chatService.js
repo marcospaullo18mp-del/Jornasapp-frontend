@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient';
 
 export async function loadConversas(userId) {
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from('chat_conversas')
     .select('*')
@@ -11,6 +12,7 @@ export async function loadConversas(userId) {
 }
 
 export async function loadMensagens(conversaId, userId) {
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from('chat_mensagens')
     .select('*')
@@ -22,6 +24,7 @@ export async function loadMensagens(conversaId, userId) {
 }
 
 export async function criarConversa(userId, title, preview) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { data, error } = await supabase
     .from('chat_conversas')
     .insert([{ user_id: userId, title, preview }])
@@ -32,6 +35,7 @@ export async function criarConversa(userId, title, preview) {
 }
 
 export async function atualizarConversa(conversaId, userId, payload) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { data, error } = await supabase
     .from('chat_conversas')
     .update(payload)
@@ -44,6 +48,7 @@ export async function atualizarConversa(conversaId, userId, payload) {
 }
 
 export async function inserirMensagem(conversaId, userId, message) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { data, error } = await supabase
     .from('chat_mensagens')
     .insert([{ conversa_id: conversaId, user_id: userId, ...message }])
@@ -54,6 +59,7 @@ export async function inserirMensagem(conversaId, userId, message) {
 }
 
 export async function deletarConversa(conversaId, userId) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { error } = await supabase
     .from('chat_conversas')
     .delete()

@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient';
 
 export async function loadTemplates(userId) {
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from('templates')
     .select('*')
@@ -11,6 +12,7 @@ export async function loadTemplates(userId) {
 }
 
 export async function criarTemplate(userId, payload) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { data, error } = await supabase
     .from('templates')
     .insert([{ user_id: userId, ...payload }])
@@ -21,6 +23,7 @@ export async function criarTemplate(userId, payload) {
 }
 
 export async function atualizarTemplate(id, userId, payload) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { data, error } = await supabase
     .from('templates')
     .update(payload)
@@ -33,6 +36,7 @@ export async function atualizarTemplate(id, userId, payload) {
 }
 
 export async function deletarTemplate(id, userId) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { error } = await supabase
     .from('templates')
     .delete()

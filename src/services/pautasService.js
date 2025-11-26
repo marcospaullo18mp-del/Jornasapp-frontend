@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient';
 
 export async function loadPautas(userId) {
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from('pautas')
     .select('*')
@@ -11,6 +12,7 @@ export async function loadPautas(userId) {
 }
 
 export async function criarPauta(userId, payload) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { data, error } = await supabase
     .from('pautas')
     .insert([{ user_id: userId, ...payload }])
@@ -21,6 +23,7 @@ export async function criarPauta(userId, payload) {
 }
 
 export async function atualizarPauta(id, userId, payload) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { data, error } = await supabase
     .from('pautas')
     .update(payload)
@@ -33,6 +36,7 @@ export async function atualizarPauta(id, userId, payload) {
 }
 
 export async function deletarPauta(id, userId) {
+  if (!supabase) throw new Error('Supabase não configurado');
   const { error } = await supabase
     .from('pautas')
     .delete()
