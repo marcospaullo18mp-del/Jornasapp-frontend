@@ -1952,7 +1952,7 @@ const JornalismoApp = () => {
   const canUseWebShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24 md:pb-20">
+    <div className={`min-h-screen pb-24 md:pb-20 ${theme === 'dark' ? 'bg-[#0f172a] text-gray-100' : 'bg-gray-50 text-gray-900'}`}>
       <div className="bg-gradient-to-r from-jorna-600 to-jorna-700 text-white p-4 shadow-lg">
           <div className="max-w-6xl mx-auto px-4">
             <div className="flex flex-row items-center justify-between text-center gap-3 md:gap-6 md:items-center md:justify-between md:text-center">
@@ -2048,6 +2048,14 @@ const JornalismoApp = () => {
                   <span className="text-sm font-semibold">
                     {profileHeaderName || 'Perfil'}
                   </span>
+                </button>
+                <button
+                  onClick={toggleTheme}
+                  className="mt-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs hover:bg-white/20 transition"
+                  type="button"
+                  aria-label="Alternar tema"
+                >
+                  {theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
                 </button>
 
                 {showProfileMenu && (
