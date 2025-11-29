@@ -1324,7 +1324,7 @@ const JornalismoApp = () => {
           'Content-Type': 'application/json'
         };
         if (ACOLHEIA_API_KEY) {
-          headers['x-acolheia-key'] = ACOLHEIA_API_KEY;
+          headers['x-jornasa-key'] = ACOLHEIA_API_KEY;
         }
 
         const response = await fetch(ACOLHEIA_API_URL, {
