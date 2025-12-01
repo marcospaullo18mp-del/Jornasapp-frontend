@@ -464,7 +464,7 @@ const GuiasView = memo(({
       <div className="mb-8">
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
           <Search size={20} className="text-green-500" />
-          Verificador de Fontes
+          Verificador de Fontes Oficiais
         </h2>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600 mb-3">Cole o texto ou URL para verificar a confiabilidade da fonte</p>
