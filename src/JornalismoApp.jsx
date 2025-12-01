@@ -5,6 +5,7 @@ import { listarPautas, criarPautaWorker, atualizarPautaWorker, deletarPautaWorke
 import { listarFontes, criarFonteWorker, atualizarFonteWorker, deletarFonteWorker } from './services/fontesWorkerService';
 import { listarTemplates, criarTemplateWorker, atualizarTemplateWorker, deletarTemplateWorker } from './services/templatesWorkerService';
 import { listarConversas, criarConversaWorker, deletarConversaWorker, listarMensagens, criarMensagemWorker } from './services/chatWorkerService';
+import { listarNotificacoes } from './services/notificationsWorkerService';
 
 const officialDomainSuffixes = [
   '.gov.br',
@@ -15,11 +16,12 @@ const officialDomainSuffixes = [
   '.edu.br',
   '.tc.br'
 ];
+const USE_LOCAL_STORE = (import.meta.env.VITE_USE_LOCAL_STORE ?? '1') !== '0';
+const getUserKey = (user) => user?.id || 'local-user';
 
 // Base do backend publicado (ajuste VITE_ACOLHEIA_API_URL no .env para outro ambiente)
 const ACOLHEIA_API_URL = import.meta.env.VITE_ACOLHEIA_API_URL || 'https://jornasa-worker.jornabot.workers.dev/mensagem';
 const ACOLHEIA_API_KEY = import.meta.env.VITE_ACOLHEIA_KEY || '';
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://jornasa-worker.jornabot.workers.dev';
 
 const stripHtml = (text = '') =>
   text
@@ -783,10 +785,11 @@ const JornalismoApp = () => {
   }, []);
 
   const loadMessagesForConversation = useCallback(async (conversation) => {
-    if (!conversation || !conversation.id || !authToken) return;
+    if (!conversation || !conversation.id) return;
+    const userId = getUserKey(currentUser);
     try {
       setChatMessagesLoading(true);
-      const msgs = await listarMensagens(authToken, conversation.id);
+      const msgs = await listarMensagens(authToken, conversation.id, userId);
       setChatMessages(msgs && msgs.length ? msgs.map(m => ({
         id: m.id,
         role: m.role,
@@ -802,14 +805,14 @@ const JornalismoApp = () => {
     } finally {
       setChatMessagesLoading(false);
     }
-  }, [authToken]);
+  }, [authToken, currentUser]);
 
   const ensureConversation = useCallback(async (userId, existingConvs) => {
     if (existingConvs && existingConvs.length > 0) {
       return existingConvs[0];
     }
-    if (!authToken) return null;
-    const created = await criarConversaWorker(authToken, { title: 'Nova conversa', preview: '' });
+    if (!authToken && !USE_LOCAL_STORE) return null;
+    const created = await criarConversaWorker(authToken, { title: 'Nova conversa', preview: '' }, userId);
     return created;
   }, [authToken]);
 
@@ -822,15 +825,16 @@ const JornalismoApp = () => {
   }, []);
 
   const handleDeleteConversation = useCallback(async (conversaId) => {
-    if (!currentUser?.id || !authToken) return;
+    const userId = getUserKey(currentUser);
+    if (!userId) return;
     try {
-      await deletarConversaWorker(authToken, conversaId);
+      await deletarConversaWorker(authToken, conversaId, userId);
       setChatHistory(prev => prev.filter(c => c.id !== conversaId));
       if (currentChatId === conversaId) {
         // fallback: carregar próxima conversa ou criar nova
-        const convs = await listarConversas(authToken);
+        const convs = await listarConversas(authToken, userId);
         setChatHistory(convs || []);
-        const next = convs && convs.length ? convs[0] : await ensureConversation(currentUser.id, convs);
+        const next = convs && convs.length ? convs[0] : await ensureConversation(userId, convs);
         setCurrentChatId(next?.id || Date.now());
         await loadMessagesForConversation(next);
       }
@@ -839,47 +843,37 @@ const JornalismoApp = () => {
       console.warn('Erro ao remover conversa', error);
       setUiAlert({ type: 'error', message: 'Não foi possível remover a conversa.' });
     }
-  }, [currentUser, currentChatId, ensureConversation, loadMessagesForConversation]);
+  }, [authToken, currentUser, currentChatId, ensureConversation, loadMessagesForConversation]);
 
   const fetchNotifications = useCallback(async (userId) => {
-    const headers = { 'Content-Type': 'application/json' };
-    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-    const resp = await fetch(`${API_BASE_URL}/notificacoes?user_id=${encodeURIComponent(userId)}`, { headers });
-    if (!resp.ok) throw new Error(`Erro ao carregar notificações: ${resp.status}`);
-    return await resp.json();
-  }, []);
+    return listarNotificacoes(authToken, userId);
+  }, [authToken]);
 
   const loadUserData = useCallback(async (userId) => {
-    if (!userId) return;
+    const effectiveUserId = getUserKey({ id: userId });
+    if (!effectiveUserId) return;
     try {
       setLoadingPautas(true);
-      if (authToken) {
-        const fetchedPautas = await listarPautas(authToken);
-        setPautas(fetchedPautas || getDefaultPautas());
+      const fetchedPautas = await listarPautas(authToken, effectiveUserId);
+      setPautas(fetchedPautas || getDefaultPautas());
 
-        const fetchedFontes = await listarFontes(authToken);
-        setFontes(fetchedFontes || getDefaultFontes());
+      const fetchedFontes = await listarFontes(authToken, effectiveUserId);
+      setFontes(fetchedFontes || getDefaultFontes());
 
-        const fetchedTemplates = await listarTemplates(authToken);
-        setTemplates(fetchedTemplates || getDefaultTemplates());
+      const fetchedTemplates = await listarTemplates(authToken, effectiveUserId);
+      setTemplates(fetchedTemplates || getDefaultTemplates());
 
-        const conversas = await listarConversas(authToken);
-        const hasConvs = conversas && conversas.length > 0;
-        const conversaAtual = hasConvs ? conversas[0] : await ensureConversation(userId, conversas);
-        setChatHistory(hasConvs ? conversas : (conversaAtual ? [conversaAtual] : []));
-        setCurrentChatId(conversaAtual?.id || Date.now());
+      const conversas = await listarConversas(authToken, effectiveUserId);
+      const hasConvs = conversas && conversas.length > 0;
+      const conversaAtual = hasConvs ? conversas[0] : await ensureConversation(effectiveUserId, conversas);
+      setChatHistory(hasConvs ? conversas : (conversaAtual ? [conversaAtual] : []));
+      setCurrentChatId(conversaAtual?.id || Date.now());
+      if (conversaAtual) {
         await loadMessagesForConversation(conversaAtual);
-
-        const fetchedNotifications = await fetchNotifications(userId);
-        setNotifications(fetchedNotifications || getDefaultNotifications());
-      } else {
-        setPautas(getDefaultPautas());
-        setFontes(getDefaultFontes());
-        setTemplates(getDefaultTemplates());
-        setChatHistory([]);
-        setChatMessages(getDefaultChatMessages());
-        setNotifications(getDefaultNotifications());
       }
+
+      const fetchedNotifications = await fetchNotifications(effectiveUserId);
+      setNotifications(fetchedNotifications || getDefaultNotifications());
       setLoadingPautas(false);
     } catch (error) {
       console.warn('Nao foi possivel carregar dados do usuario', error);
@@ -892,17 +886,11 @@ const JornalismoApp = () => {
       setNotifications(getDefaultNotifications());
       setLoadingPautas(false);
     }
-  }, []);
+  }, [authToken, fetchNotifications, loadMessagesForConversation, ensureConversation]);
 
   useEffect(() => {
-    if (currentUser?.id) {
-      loadUserData(currentUser.id);
-    } else {
-      setPautas(getDefaultPautas());
-      setFontes(getDefaultFontes());
-      setTemplates(getDefaultTemplates());
-      setChatMessages(getDefaultChatMessages());
-    }
+    const userId = getUserKey(currentUser);
+    loadUserData(userId);
   }, [currentUser, loadUserData]);
 
   const updateField = useCallback((field, value) => {
@@ -1145,7 +1133,7 @@ const JornalismoApp = () => {
       }
     };
     reader.readAsDataURL(file);
-  }, [currentUser]);
+  }, [authToken, currentUser]);
 
   const handleOpenAvatarPicker = useCallback(() => {
     setShowProfileMenu(false);
@@ -1161,12 +1149,9 @@ const JornalismoApp = () => {
   }, []);
 
   const handleNewChat = useCallback(async () => {
-    if (!currentUser?.id) {
-      setUiAlert({ type: 'error', message: 'Faça login para criar conversa.' });
-      return;
-    }
+    const userId = getUserKey(currentUser);
     try {
-      const conversa = await criarConversa(currentUser.id, 'Nova conversa', '');
+      const conversa = await criarConversaWorker(authToken, { title: 'Nova conversa', preview: '' }, userId);
       setChatHistory(prev => [conversa, ...prev]);
       setCurrentChatId(conversa.id);
       setChatMessages(getDefaultChatMessages());
@@ -1241,15 +1226,12 @@ const JornalismoApp = () => {
   const sendChatMessage = useCallback(async () => {
     const trimmed = chatInput.trim();
     if (!trimmed || chatLoading) return;
-    if (!currentUser?.id || !authToken) {
-      setUiAlert({ type: 'error', message: 'Faça login para enviar mensagens.' });
-      return;
-    }
+    const userId = getUserKey(currentUser);
 
     let conversaId = currentChatId;
     if (!conversaId || typeof conversaId === 'undefined') {
       try {
-        const nova = await criarConversaWorker(authToken, { title: buildChatTitle([{ role: 'user', content: trimmed }]), preview: buildChatPreview([{ content: trimmed }]) });
+        const nova = await criarConversaWorker(authToken, { title: buildChatTitle([{ role: 'user', content: trimmed }]), preview: buildChatPreview([{ content: trimmed }]) }, userId);
         conversaId = nova.id;
         setCurrentChatId(nova.id);
         setChatHistory(prev => [nova, ...prev]);
@@ -1305,7 +1287,7 @@ const JornalismoApp = () => {
 
     (async () => {
       try {
-        await criarMensagemWorker(authToken, conversaId, { role: 'user', content: trimmed, is_html: false });
+        await criarMensagemWorker(authToken, conversaId, { role: 'user', content: trimmed, is_html: false }, userId);
         updateConversationInHistory(conversaId, { title: buildChatTitle([userMessage]), preview: buildChatPreview([userMessage]) });
       } catch (err) {
         console.warn('Erro ao registrar mensagem do usuário', err);
@@ -1324,7 +1306,7 @@ const JornalismoApp = () => {
       setChatLoading(false);
       (async () => {
         try {
-          await criarMensagemWorker(authToken, conversaId, { role: 'bot', content, is_html: isHTML });
+          await criarMensagemWorker(authToken, conversaId, { role: 'bot', content, is_html: isHTML }, userId);
           updateConversationInHistory(conversaId, {
             title: buildChatTitle([{ role: 'user', content: trimmed }]),
             preview: buildChatPreview([{ content }])
@@ -1381,7 +1363,7 @@ const JornalismoApp = () => {
         );
       }
     })();
-  }, [authToken, chatInput, chatLoading, buildConversationContext, buscarWeb]);
+  }, [authToken, currentUser, chatInput, chatLoading, buildConversationContext, buscarWeb, updateConversationInHistory]);
 
   const toggleProfileMenu = useCallback(() => {
     setShowProfileMenu(prev => !prev);
@@ -1485,10 +1467,7 @@ const JornalismoApp = () => {
   }, [showProfileMenu]);
 
   const savePauta = useCallback(async () => {
-    if (!currentUser?.id || !authToken) {
-      setUiAlert({ type: 'error', message: 'Faça login para salvar pautas.' });
-      return;
-    }
+    const userId = getUserKey(currentUser);
 
     const payload = {
       titulo: formData.titulo || '',
@@ -1499,10 +1478,10 @@ const JornalismoApp = () => {
 
     try {
       if (editingItem) {
-        const updated = await atualizarPautaWorker(authToken, editingItem.id, payload);
+        const updated = await atualizarPautaWorker(authToken, editingItem.id, payload, userId);
         setPautas(prev => prev.map(p => p.id === editingItem.id ? updated : p));
       } else {
-        const created = await criarPautaWorker(authToken, payload);
+        const created = await criarPautaWorker(authToken, payload, userId);
         setPautas(prev => [created, ...prev]);
       }
       closeModal();
@@ -1514,10 +1493,7 @@ const JornalismoApp = () => {
   }, [editingItem, formData, closeModal, currentUser, authToken]);
 
   const saveFonte = useCallback(async () => {
-    if (!currentUser?.id || !authToken) {
-      setUiAlert({ type: 'error', message: 'Faça login para salvar fontes.' });
-      return;
-    }
+    const userId = getUserKey(currentUser);
 
     const payload = {
       nome: formData.nome || '',
@@ -1529,10 +1505,10 @@ const JornalismoApp = () => {
 
     try {
       if (editingItem) {
-        const updated = await atualizarFonteWorker(authToken, editingItem.id, payload);
+        const updated = await atualizarFonteWorker(authToken, editingItem.id, payload, userId);
         setFontes(prev => prev.map(f => f.id === editingItem.id ? updated : f));
       } else {
-        const created = await criarFonteWorker(authToken, payload);
+        const created = await criarFonteWorker(authToken, payload, userId);
         setFontes(prev => [created, ...prev]);
       }
       closeModal();
@@ -1544,10 +1520,7 @@ const JornalismoApp = () => {
   }, [editingItem, formData, closeModal, currentUser, authToken]);
 
   const saveTemplate = useCallback(async () => {
-    if (!currentUser?.id || !authToken) {
-      setUiAlert({ type: 'error', message: 'Faça login para salvar templates.' });
-      return;
-    }
+    const userId = getUserKey(currentUser);
 
     const payload = {
       nome: formData.nome || 'Novo Template',
@@ -1556,10 +1529,10 @@ const JornalismoApp = () => {
 
     try {
       if (editingItem) {
-        const updated = await atualizarTemplateWorker(authToken, editingItem.id, payload);
+        const updated = await atualizarTemplateWorker(authToken, editingItem.id, payload, userId);
         setTemplates(prev => prev.map(template => template.id === editingItem.id ? updated : template));
       } else {
-        const created = await criarTemplateWorker(authToken, payload);
+        const created = await criarTemplateWorker(authToken, payload, userId);
         setTemplates(prev => [created, ...prev]);
       }
       closeModal();
@@ -1571,9 +1544,9 @@ const JornalismoApp = () => {
   }, [editingItem, formData, closeModal, currentUser, authToken]);
 
   const deletePauta = useCallback(async (id) => {
-    if (!currentUser?.id || !authToken) return;
+    const userId = getUserKey(currentUser);
     try {
-      await deletarPautaWorker(authToken, id);
+      await deletarPautaWorker(authToken, id, userId);
       setPautas(prev => prev.filter(p => p.id !== id));
       setUiAlert({ type: 'success', message: 'Pauta removida.' });
     } catch (error) {
@@ -1583,9 +1556,9 @@ const JornalismoApp = () => {
   }, [currentUser, authToken]);
 
   const deleteFonte = useCallback(async (id) => {
-    if (!currentUser?.id || !authToken) return;
+    const userId = getUserKey(currentUser);
     try {
-      await deletarFonteWorker(authToken, id);
+      await deletarFonteWorker(authToken, id, userId);
       setFontes(prev => prev.filter(f => f.id !== id));
       setUiAlert({ type: 'success', message: 'Fonte removida.' });
     } catch (error) {
