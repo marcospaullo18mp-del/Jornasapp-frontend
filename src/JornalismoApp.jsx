@@ -2268,7 +2268,7 @@ const JornalismoApp = () => {
               </div>
               <div className="flex flex-col items-center justify-center gap-0.5 flex-1 text-center">
                 <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Bem-vindo(a) ao Jornasa</h1>
-                <p className="text-xs md:text-sm text-white/80">O futuro do jornalismo começa agora</p>
+                <p className="text-xs md:text-sm text-white/80">O futuro do jornalismo começa agora!</p>
               </div>
             <div className="flex items-start md:items-center justify-end gap-3 w-1/4 md:w-1/4">
               <div className="relative mt-4 md:mt-0">
