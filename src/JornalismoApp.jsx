@@ -1,11 +1,12 @@
-import React, { useState, useCallback, memo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, memo, useRef, useEffect, useMemo } from 'react';
 import officialSources from './officialSources.json';
-import { Plus, Search, FileText, Users, BookOpen, User, Bell, Clock, Edit2, Trash2, X, MessageCircle } from 'lucide-react';
+import { Plus, Search, FileText, Users, BookOpen, User, Bell, Clock, Edit2, Trash2, X, MessageCircle, Copy as CopyIcon } from 'lucide-react';
 import { listarPautas, criarPautaWorker, atualizarPautaWorker, deletarPautaWorker } from './services/pautasWorkerService';
 import { listarFontes, criarFonteWorker, atualizarFonteWorker, deletarFonteWorker } from './services/fontesWorkerService';
 import { listarTemplates, criarTemplateWorker, atualizarTemplateWorker, deletarTemplateWorker } from './services/templatesWorkerService';
 import { listarConversas, criarConversaWorker, deletarConversaWorker, listarMensagens, criarMensagemWorker } from './services/chatWorkerService';
 import { listarNotificacoes } from './services/notificationsWorkerService';
+import { getTemplateMeta, upsertTemplateMeta, recordTemplateUsage, removeTemplateMeta } from './services/templateMetaStore';
 
 const officialDomainSuffixes = [
   '.gov.br',
@@ -415,7 +416,30 @@ const ChatbotView = memo(({ messages, messagesLoading, chatInput, onInputChange,
   </div>
 ));
 
-const GuiasView = memo(({ verifyText, onVerifyTextChange, verificarFonte, verifying, verifyResult, templates, guias, onTemplateAction, copiedTemplateId, canShareTemplates, onEditTemplate, onAddTemplate }) => (
+const GuiasView = memo(({
+  verifyText,
+  onVerifyTextChange,
+  verificarFonte,
+  verifying,
+  verifyResult,
+  templates,
+  guias,
+  onTemplateAction,
+  copiedTemplateId,
+  canShareTemplates,
+  onEditTemplate,
+  onAddTemplate,
+  templateSearch,
+  onTemplateSearchChange,
+  templateTagFilter,
+  onTemplateTagChange,
+  templateOnlyFavorites,
+  onToggleTemplateOnlyFavorites,
+  availableTemplateTags,
+  onUseTemplate,
+  onDuplicateTemplate,
+  onToggleTemplateFavorite
+}) => (
     <div className="p-4 pb-20">
       <h1 className="text-2xl font-bold text-jorna-brown mb-6">Guias e Templates</h1>
     
@@ -476,13 +500,60 @@ const GuiasView = memo(({ verifyText, onVerifyTextChange, verificarFonte, verify
             Novo
           </button>
         </div>
+        <div className="grid gap-3 md:grid-cols-3 mb-4">
+          <input
+            value={templateSearch}
+            onChange={(e) => onTemplateSearchChange(e.target.value)}
+            placeholder="Buscar por nome ou conteúdo..."
+            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-jorna-500 outline-none"
+          />
+          <select
+            value={templateTagFilter}
+            onChange={(e) => onTemplateTagChange(e.target.value)}
+            className="w-full px-3 py-2 border rounded-lg bg-white"
+          >
+            <option value="todas">Todas as tags</option>
+            {availableTemplateTags.map((tag) => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+          <button
+            onClick={onToggleTemplateOnlyFavorites}
+            className={`w-full px-3 py-2 border rounded-lg ${templateOnlyFavorites ? 'bg-jorna-50 border-jorna-300 text-jorna-700' : 'bg-white text-gray-700'}`}
+          >
+            {templateOnlyFavorites ? '★ Mostrar favoritos' : '☆ Todos os templates'}
+          </button>
+        </div>
         <div className="space-y-3">
           {templates.map(template => (
             <div key={template.id} className="bg-white rounded-lg shadow p-4">
-              <h3 className="font-semibold mb-3">{template.nome}</h3>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold mb-1 flex items-center gap-2">
+                    {template.nome}
+                    {template.favorito ? <span className="text-amber-500">★</span> : null}
+                  </h3>
+                  {template.categoria ? (
+                    <span className="text-xs text-gray-500">Categoria: {template.categoria}</span>
+                  ) : null}
+                </div>
+                <div className="text-right text-xs text-gray-500">
+                  {template.lastUsedAt ? `Usado em ${new Date(template.lastUsedAt).toLocaleDateString()}` : 'Ainda não usado'}
+                  <div className="font-medium text-jorna-600">Usos: {template.usageCount || 0}</div>
+                </div>
+              </div>
               <pre className="text-sm text-gray-600 whitespace-pre-wrap font-sans bg-gray-50 p-3 rounded border">
                 {template.conteudo}
               </pre>
+              {template.tags?.length ? (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {template.tags.map((tag) => (
+                    <span key={tag} className="px-2 py-1 bg-jorna-50 text-jorna-700 rounded-full text-xs border border-jorna-100">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               <div className="mt-3 flex flex-wrap gap-3 text-sm font-medium">
                 <button
                   onClick={() => onTemplateAction(template)}
@@ -495,11 +566,31 @@ const GuiasView = memo(({ verifyText, onVerifyTextChange, verificarFonte, verify
                       : '📋 Copiar Template'}
                 </button>
                 <button
+                  onClick={() => onUseTemplate(template)}
+                  className="text-jorna-500 hover:text-jorna-700 flex items-center gap-1"
+                >
+                  <MessageCircle size={14} />
+                  Usar no chat
+                </button>
+                <button
                   onClick={() => onEditTemplate(template)}
                   className="text-gray-600 hover:text-jorna-700 flex items-center gap-1"
                 >
                   <Edit2 size={14} />
                   Editar
+                </button>
+                <button
+                  onClick={() => onDuplicateTemplate(template)}
+                  className="text-gray-600 hover:text-jorna-700 flex items-center gap-1"
+                >
+                  <CopyIcon />
+                  Duplicar
+                </button>
+                <button
+                  onClick={() => onToggleTemplateFavorite(template)}
+                  className="text-amber-600 hover:text-amber-700 flex items-center gap-1"
+                >
+                  {template.favorito ? '★ Favorito' : '☆ Favoritar'}
                 </button>
               </div>
             </div>
@@ -669,6 +760,35 @@ const GuiasView = memo(({ verifyText, onVerifyTextChange, verificarFonte, verify
                     placeholder={'TÍTULO:\n\nTEXTO:\n\nFONTE:'}
                   />
                 </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Tags (separe por vírgulas)</label>
+                    <input
+                      value={formData.templateTags || ''}
+                      onChange={(e) => onUpdateField('templateTags', e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-jorna-500 outline-none"
+                      placeholder="briefing, nota, giro"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Categoria</label>
+                    <input
+                      value={formData.templateCategoria || ''}
+                      onChange={(e) => onUpdateField('templateCategoria', e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-jorna-500 outline-none"
+                      placeholder="Ex: Apuração, Newsletter"
+                    />
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={!!formData.templateFavorito}
+                    onChange={(e) => onUpdateField('templateFavorito', e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  Marcar como favorito
+                </label>
                 <button
                   onClick={onSaveTemplate}
                   className="w-full bg-jorna-500 text-white py-3 rounded-lg hover:bg-jorna-600 transition font-medium"
@@ -696,6 +816,10 @@ const JornalismoApp = () => {
   const [pautas, setPautas] = useState(getDefaultPautas);
   const [fontes, setFontes] = useState(getDefaultFontes);
   const [templates, setTemplates] = useState(getDefaultTemplates);
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [templateTagFilter, setTemplateTagFilter] = useState('todas');
+  const [templateOnlyFavorites, setTemplateOnlyFavorites] = useState(false);
+  const [availableTemplateTags, setAvailableTemplateTags] = useState([]);
   const [loadingPautas, setLoadingPautas] = useState(false);
   const [guias] = useState([
     { id: 1, titulo: 'Como Verificar Fontes', conteudo: '1. Cheque credenciais\n2. Busque fontes oficiais\n3. Cruzar informações\n4. Verificar histórico' },
@@ -737,12 +861,39 @@ const JornalismoApp = () => {
   const [chatLoading, setChatLoading] = useState(false);
   const [buscarWeb, setBuscarWeb] = useState(false);
   const [uiAlert, setUiAlert] = useState(null);
+  const parseTagsInput = useCallback((value = '') => {
+    return value
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+  }, []);
+  const applyTemplateMeta = useCallback((list = []) => {
+    return list.map((template) => {
+      const meta = getTemplateMeta(template.id);
+      return {
+        ...template,
+        tags: meta.tags || [],
+        categoria: meta.categoria || '',
+        favorito: !!meta.favorito,
+        usageCount: meta.usageCount || 0,
+        lastUsedAt: meta.lastUsedAt || null,
+      };
+    });
+  }, []);
   const [authToken, setAuthToken] = useState(null);
   useEffect(() => {
     if (chatListRef.current) {
       chatListRef.current.scrollTop = chatListRef.current.scrollHeight;
     }
   }, [chatMessages, chatMessagesLoading]);
+  useEffect(() => {
+    const tags = Array.from(
+      new Set(
+        (templates || []).flatMap((t) => (t.tags || []).filter(Boolean))
+      )
+    );
+    setAvailableTemplateTags(tags);
+  }, [templates]);
   useEffect(() => {
     if (!uiAlert) return;
     const timer = setTimeout(() => setUiAlert(null), 3500);
@@ -763,6 +914,25 @@ const JornalismoApp = () => {
       .filter(Boolean);
     return recent.length ? `Contexto recente:\n${recent.join('\n')}` : '';
   }, [chatMessages]);
+
+  const filteredTemplates = useMemo(() => {
+    const term = templateSearch.toLowerCase();
+    return templates
+      .filter((t) => {
+        const haystack = `${t.nome || ''} ${t.conteudo || ''} ${t.categoria || ''} ${(t.tags || []).join(' ')}`.toLowerCase();
+        const matchesTerm = !term || haystack.includes(term);
+        const matchesTag = templateTagFilter === 'todas' || (t.tags || []).includes(templateTagFilter);
+        const matchesFav = !templateOnlyFavorites || t.favorito;
+        return matchesTerm && matchesTag && matchesFav;
+      })
+      .sort((a, b) => {
+        if (a.favorito && !b.favorito) return -1;
+        if (!a.favorito && b.favorito) return 1;
+        const aUse = a.usageCount || 0;
+        const bUse = b.usageCount || 0;
+        return bUse - aUse;
+      });
+  }, [templates, templateSearch, templateTagFilter, templateOnlyFavorites]);
 
   const handleSetSearchTermPautas = useCallback((value) => {
     setSearchTermPautas(value);
@@ -888,7 +1058,8 @@ const JornalismoApp = () => {
       setFontes(fetchedFontes || getDefaultFontes());
 
       const fetchedTemplates = await listarTemplates(authToken, effectiveUserId);
-      setTemplates(fetchedTemplates || getDefaultTemplates());
+      const mergedTemplates = applyTemplateMeta(fetchedTemplates || getDefaultTemplates());
+      setTemplates(mergedTemplates);
 
       const conversas = await listarConversas(authToken, effectiveUserId);
       const hasConvs = conversas && conversas.length > 0;
@@ -913,7 +1084,7 @@ const JornalismoApp = () => {
       setNotifications(getDefaultNotifications());
       setLoadingPautas(false);
     }
-  }, [authToken, fetchNotifications, loadMessagesForConversation, ensureConversation]);
+  }, [authToken, fetchNotifications, loadMessagesForConversation, ensureConversation, applyTemplateMeta]);
 
   useEffect(() => {
     const userId = getUserKey(currentUser);
@@ -1422,6 +1593,9 @@ const JornalismoApp = () => {
         clearTimeout(copyTemplateTimeoutRef.current);
       }
       copyTemplateTimeoutRef.current = setTimeout(() => setCopiedTemplateId(null), 2000);
+
+      const meta = recordTemplateUsage(template.id);
+      setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, ...meta } : t));
     } catch (error) {
       console.error('Erro ao copiar template', error);
       alert('Não foi possível copiar o template.');
@@ -1437,6 +1611,8 @@ const JornalismoApp = () => {
           title: `Template: ${template.nome}`,
           text: template.conteudo
         });
+        const meta = recordTemplateUsage(template.id);
+        setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, ...meta } : t));
         return;
       } catch (error) {
         if (error?.name === 'AbortError') {
@@ -1448,6 +1624,39 @@ const JornalismoApp = () => {
 
     await copyTemplateToClipboard(template);
   }, [copyTemplateToClipboard]);
+
+  const handleUseTemplateInChat = useCallback((template) => {
+    setChatInput(template.conteudo || '');
+    const meta = recordTemplateUsage(template.id);
+    setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, ...meta } : t));
+    setUiAlert({ type: 'success', message: 'Template aplicado no chat.' });
+  }, []);
+
+  const handleDuplicateTemplate = useCallback(async (template) => {
+    const userId = getUserKey(currentUser);
+    try {
+      const payload = {
+        nome: `${template.nome || 'Template'} (cópia)`,
+        conteudo: template.conteudo || ''
+      };
+      const created = await criarTemplateWorker(authToken, payload, userId);
+      const meta = upsertTemplateMeta(created.id, {
+        tags: template.tags || [],
+        categoria: template.categoria || '',
+        favorito: template.favorito || false
+      });
+      setTemplates(prev => [{ ...created, ...meta }, ...prev]);
+      setUiAlert({ type: 'success', message: 'Template duplicado.' });
+    } catch (error) {
+      console.warn('Erro ao duplicar template', error);
+      setUiAlert({ type: 'error', message: 'Não foi possível duplicar o template.' });
+    }
+  }, [authToken, currentUser]);
+
+  const handleToggleTemplateFavorite = useCallback((template) => {
+    const meta = upsertTemplateMeta(template.id, { favorito: !template.favorito });
+    setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, ...meta } : t));
+  }, []);
 
   const toggleNotifications = useCallback(() => {
     setShowNotifications(prev => !prev);
@@ -1553,14 +1762,19 @@ const JornalismoApp = () => {
       nome: formData.nome || 'Novo Template',
       conteudo: formData.conteudo || ''
     };
+    const tags = parseTagsInput(formData.templateTags || '');
+    const categoria = formData.templateCategoria || '';
+    const favorito = !!formData.templateFavorito;
 
     try {
       if (editingItem) {
         const updated = await atualizarTemplateWorker(authToken, editingItem.id, payload, userId);
-        setTemplates(prev => prev.map(template => template.id === editingItem.id ? updated : template));
+        const meta = upsertTemplateMeta(updated.id, { tags, categoria, favorito });
+        setTemplates(prev => prev.map(template => template.id === editingItem.id ? { ...updated, ...meta } : template));
       } else {
         const created = await criarTemplateWorker(authToken, payload, userId);
-        setTemplates(prev => [created, ...prev]);
+        const meta = upsertTemplateMeta(created.id, { tags, categoria, favorito });
+        setTemplates(prev => [{ ...created, ...meta }, ...prev]);
       }
       closeModal();
       setUiAlert({ type: 'success', message: 'Template salvo.' });
@@ -1568,7 +1782,7 @@ const JornalismoApp = () => {
       console.warn('Erro ao salvar template', error);
       setUiAlert({ type: 'error', message: 'Não foi possível salvar o template.' });
     }
-  }, [editingItem, formData, closeModal, currentUser, authToken]);
+  }, [editingItem, formData, closeModal, currentUser, authToken, parseTagsInput]);
 
   const deletePauta = useCallback(async (id) => {
     const userId = getUserKey(currentUser);
@@ -1679,12 +1893,30 @@ const JornalismoApp = () => {
   }, []);
 
   const handleEditTemplate = useCallback((template) => {
-    openModal('template', template);
-  }, [openModal]);
+    const meta = getTemplateMeta(template.id);
+    setModalType('template');
+    setEditingItem(template);
+    setFormData({
+      ...template,
+      templateTags: (meta.tags || []).join(', '),
+      templateCategoria: meta.categoria || '',
+      templateFavorito: meta.favorito || false,
+    });
+    setShowModal(true);
+  }, []);
 
   const handleAddTemplate = useCallback(() => {
-    openModal('template');
-  }, [openModal]);
+    setModalType('template');
+    setEditingItem(null);
+    setFormData({
+      nome: '',
+      conteudo: '',
+      templateTags: '',
+      templateCategoria: '',
+      templateFavorito: false,
+    });
+    setShowModal(true);
+  }, []);
 
   const filteredPautas = pautas.filter(p => {
     const matchSearch = p.titulo.toLowerCase().includes(searchTermPautas.toLowerCase());
@@ -2120,13 +2352,23 @@ const JornalismoApp = () => {
             verificarFonte={verificarFonte}
             verifying={verifying}
             verifyResult={verifyResult}
-            templates={templates}
+            templates={filteredTemplates}
             guias={guias}
             onTemplateAction={handleTemplateShareOrCopy}
             copiedTemplateId={copiedTemplateId}
             canShareTemplates={canUseWebShare}
             onEditTemplate={handleEditTemplate}
             onAddTemplate={handleAddTemplate}
+            templateSearch={templateSearch}
+            onTemplateSearchChange={setTemplateSearch}
+            templateTagFilter={templateTagFilter}
+            onTemplateTagChange={setTemplateTagFilter}
+            templateOnlyFavorites={templateOnlyFavorites}
+            onToggleTemplateOnlyFavorites={() => setTemplateOnlyFavorites(prev => !prev)}
+            availableTemplateTags={availableTemplateTags}
+            onUseTemplate={handleUseTemplateInChat}
+            onDuplicateTemplate={handleDuplicateTemplate}
+            onToggleTemplateFavorite={handleToggleTemplateFavorite}
           />
         )}
         {currentView === 'perfil' && <PerfilView />}
