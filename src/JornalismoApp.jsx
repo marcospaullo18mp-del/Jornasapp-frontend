@@ -30,6 +30,23 @@ const stripHtml = (text = '') =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const buildTemplateContent = (titulo = '', texto = '', fonte = '') => {
+  return `TÍTULO: ${titulo || ''}\n\nTEXTO: ${texto || ''}\n\nFONTE: ${fonte || ''}`.trimEnd();
+};
+
+const parseTemplateContent = (content = '') => {
+  const pattern = /T[ÍI]TULO:\s*([\s\S]*?)(?:\n\s*\n)?TEXTO:\s*([\s\S]*?)(?:\n\s*\n)?FONTE:\s*([\s\S]*)/i;
+  const match = content.match(pattern);
+  if (!match) {
+    return { templateTitulo: '', templateTexto: '', templateFonte: '' };
+  }
+  return {
+    templateTitulo: match[1]?.trim() || '',
+    templateTexto: match[2]?.trim() || '',
+    templateFonte: match[3]?.trim() || '',
+  };
+};
+
 const addProfessionalEmojis = (text = '') => {
   if (!text) return text;
   const rules = [
@@ -110,7 +127,7 @@ const getDefaultChatMessages = () => ([
   {
     id: 1,
     role: 'bot',
-    content: formatBotResponseText('Olá, amorecos! Sou o JornaIA. Posso ajudar a estruturar pautas, sugerir fontes ou organizar seu workflow. Em que posso ajudar hoje?'),
+    content: formatBotResponseText('O futuro do jornalismo começa agora. Bem-vindo ao Jornasa'),
     isHTML: true
   }
 ]);
@@ -753,6 +770,27 @@ const GuiasView = memo(({
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Conteúdo *</label>
+                  <div className="grid gap-2 mb-2">
+                    <input
+                      value={formData.templateTitulo || ''}
+                      onChange={(e) => onUpdateField('templateTitulo', e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-jorna-500 outline-none"
+                      placeholder="Título do material"
+                    />
+                    <textarea
+                      value={formData.templateTexto || ''}
+                      onChange={(e) => onUpdateField('templateTexto', e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-jorna-500 outline-none"
+                      rows="3"
+                      placeholder="Texto principal"
+                    />
+                    <input
+                      value={formData.templateFonte || ''}
+                      onChange={(e) => onUpdateField('templateFonte', e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-jorna-500 outline-none"
+                      placeholder="Fonte / referência"
+                    />
+                  </div>
                   <textarea
                     value={formData.conteudo || ''}
                     onChange={(e) => onUpdateField('conteudo', e.target.value)}
@@ -1094,7 +1132,17 @@ const JornalismoApp = () => {
   }, [currentUser, loadUserData]);
 
   const updateField = useCallback((field, value) => {
-    setFormData(prev => ({...prev, [field]: value}));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      const isTemplateSection = ['templateTitulo', 'templateTexto', 'templateFonte'].includes(field);
+      if (isTemplateSection) {
+        const titulo = field === 'templateTitulo' ? value : prev.templateTitulo || '';
+        const texto = field === 'templateTexto' ? value : prev.templateTexto || '';
+        const fonte = field === 'templateFonte' ? value : prev.templateFonte || '';
+        next.conteudo = buildTemplateContent(titulo, texto, fonte);
+      }
+      return next;
+    });
   }, []);
 
   const handleLogin = useCallback(() => {
@@ -1902,6 +1950,7 @@ const JornalismoApp = () => {
 
   const handleEditTemplate = useCallback((template) => {
     const meta = getTemplateMeta(template.id);
+    const parsed = parseTemplateContent(template.conteudo || '');
     setModalType('template');
     setEditingItem(template);
     setFormData({
@@ -1909,6 +1958,9 @@ const JornalismoApp = () => {
       templateTags: (meta.tags || []).join(', '),
       templateCategoria: meta.categoria || '',
       templateFavorito: meta.favorito || false,
+      templateTitulo: parsed.templateTitulo,
+      templateTexto: parsed.templateTexto,
+      templateFonte: parsed.templateFonte,
     });
     setShowModal(true);
   }, []);
@@ -1922,6 +1974,9 @@ const JornalismoApp = () => {
       templateTags: '',
       templateCategoria: '',
       templateFavorito: false,
+      templateTitulo: '',
+      templateTexto: '',
+      templateFonte: '',
     });
     setShowModal(true);
   }, []);
