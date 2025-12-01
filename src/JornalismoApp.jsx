@@ -2157,7 +2157,7 @@ const JornalismoApp = () => {
             <div className="flex items-center justify-center">
               <img src="/3.png" alt="Jornasa" className="w-24 h-24 object-contain" />
             </div>
-            <h1 className="text-2xl font-bold text-jorna-brown text-center">Bem-vindo ao JornasaApp</h1>
+            <h1 className="text-2xl font-bold text-jorna-brown text-center">O futuro do jornalismo começa agora. Bem-vindo ao Jornasa.</h1>
             <p className="text-gray-600 text-center text-sm">Acesse sua conta para gerenciar pautas e fontes.</p>
           </div>
 
