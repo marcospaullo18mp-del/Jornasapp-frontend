@@ -2253,13 +2253,13 @@ const JornalismoApp = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-20">
-      <div className="bg-gradient-to-r from-jorna-600 to-jorna-700 text-white p-4 shadow-lg">
+      <div className="bg-gradient-to-r from-jorna-600 to-jorna-700 text-white p-3 sm:p-4 shadow-lg">
           <div className="max-w-6xl mx-auto px-4">
             <div className="flex flex-row items-center justify-between text-center gap-3 md:gap-6 md:items-center md:justify-between md:text-center">
               <div className="flex items-center justify-start w-1/4 md:w-1/4 md:pl-4">
                 <button
                   onClick={() => { setCurrentView('home'); setShowNotifications(false); setShowProfileMenu(false); }}
-                  className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-lg hover:bg-white/10 transition"
+                  className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg hover:bg-white/10 transition"
                   aria-label="Ir para a página inicial"
                   type="button"
                 >
@@ -2267,20 +2267,20 @@ const JornalismoApp = () => {
                 </button>
               </div>
               <div className="flex flex-col items-center justify-center gap-0.5 flex-1 text-center">
-                <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Bem-vindo(a) ao Jornasa</h1>
-                <p className="text-xs md:text-sm text-white/80">O futuro do jornalismo começa agora!</p>
+                <h1 className="text-lg sm:text-xl md:text-2xl font-semibold tracking-tight leading-tight">O futuro do jornalismo começa agora.</h1>
+                <p className="text-xs md:text-sm text-white/80 leading-tight">Bem-vindo(a) ao Jornasa.</p>
               </div>
             <div className="flex items-start md:items-center justify-end gap-3 w-1/4 md:w-1/4">
               <div className="relative mt-4 md:mt-0">
                 <button
                   ref={notificationButtonRef}
                   onClick={toggleNotifications}
-                  className="hover:bg-jorna-500 p-1.5 rounded-full transition relative focus:outline-none focus:ring-2 focus:ring-white/60"
+                  className="hover:bg-jorna-500 p-1 rounded-full transition relative focus:outline-none focus:ring-2 focus:ring-white/60"
                   aria-label="Abrir notificações"
                 >
-                  <Bell size={18} />
+                  <Bell size={16} className="sm:size-18" />
                   {hasUnreadNotifications && (
-                    <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs font-semibold rounded-full px-1.5">
+                    <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] sm:text-xs font-semibold rounded-full px-1.5">
                       {unreadCount}
                     </span>
                   )}
