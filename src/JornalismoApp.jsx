@@ -908,6 +908,8 @@ const JornalismoApp = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [searchTermPautas, setSearchTermPautas] = useState('');
   const [searchTermFontes, setSearchTermFontes] = useState('');
+  const debouncedSearchTermPautas = useDebounce(searchTermPautas, 200);
+  const debouncedSearchTermFontes = useDebounce(searchTermFontes, 200);
   const [filterStatus, setFilterStatus] = useState('todos');
   const [formData, setFormData] = useState({});
   const [notifications, setNotifications] = useState(getDefaultNotifications);
@@ -2542,5 +2544,3 @@ const JornalismoApp = () => {
 };
 
 export default JornalismoApp;
-  const debouncedSearchTermPautas = useDebounce(searchTermPautas, 200);
-  const debouncedSearchTermFontes = useDebounce(searchTermFontes, 200);
