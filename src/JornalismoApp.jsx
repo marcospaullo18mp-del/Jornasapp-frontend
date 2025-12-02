@@ -191,7 +191,7 @@ const HomeView = memo(({ filteredPautas, searchTermPautas, onSearchTermPautasCha
     {loading ? (
       <div className="space-y-3">
         {[1, 2].map((i) => (
-          <div key={i} className="bg-white rounded-lg shadow p-3 border border-gray-100 animate-pulse space-y-3">
+          <div key={i} className="bg-white rounded-lg shadow p-4 border border-gray-100 animate-pulse space-y-3">
             <div className="h-4 w-1/2 bg-gray-200 rounded" />
             <div className="h-3 w-5/6 bg-gray-100 rounded" />
             <div className="flex gap-2">
@@ -216,7 +216,7 @@ const HomeView = memo(({ filteredPautas, searchTermPautas, onSearchTermPautasCha
         {filteredPautas.map(pauta => {
           const daysLeft = getDaysUntilDeadline(pauta.deadline);
           return (
-            <div key={pauta.id} className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-jorna-500">
+            <div key={pauta.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-jorna-500">
               <div className="flex justify-between items-start mb-2 gap-3 flex-col sm:flex-row">
                 <h3 className="font-semibold text-lg flex-1">{pauta.titulo}</h3>
                 <div className="flex gap-2 ml-0 sm:ml-2">
@@ -284,7 +284,7 @@ const FontesView = memo(({ filteredFontes, searchTermFontes, setSearchTermFontes
     ) : (
       <div className="space-y-3">
         {filteredFontes.map(fonte => (
-          <div key={fonte.id} className="bg-white rounded-lg shadow p-3 sm:p-4">
+          <div key={fonte.id} className="bg-white rounded-lg shadow p-4">
             <div className="flex justify-between items-start mb-2 gap-2 flex-col sm:flex-row">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -390,7 +390,7 @@ const ChatbotView = memo(({ messages, messagesLoading, chatInput, onInputChange,
         ))}
       </div>
       <div className="p-4 border-t bg-white">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <input
             ref={chatInputRef}
             type="text"
@@ -403,32 +403,32 @@ const ChatbotView = memo(({ messages, messagesLoading, chatInput, onInputChange,
               }
             }}
             placeholder="Conte como posso ajudar suas pautas..."
-            className="flex-1 px-3 py-2.5 border rounded-2xl focus:ring-2 focus:ring-jorna-500 outline-none bg-gray-50 w-full text-sm sm:text-base"
+            className="flex-1 px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-jorna-500 outline-none bg-gray-50 w-full"
             disabled={loading}
           />
           <button
             onClick={onSendMessage}
             disabled={loading || !chatInput.trim()}
-            className="bg-jorna-600 text-white px-4 py-2.5 rounded-2xl font-semibold shadow hover:bg-jorna-700 disabled:bg-gray-300 disabled:cursor-not-allowed w-full sm:w-auto text-sm sm:text-base"
+            className="bg-jorna-600 text-white px-5 py-3 rounded-2xl font-semibold shadow hover:bg-jorna-700 disabled:bg-gray-300 disabled:cursor-not-allowed w-full sm:w-auto"
           >
             {loading ? 'Enviando...' : 'Enviar'}
           </button>
         </div>
-        <div className="flex items-center justify-between mt-2">
-          <label htmlFor="buscar-web" className="flex items-center gap-2 text-sm text-gray-600 select-none">
-            <input
-              id="buscar-web"
-              type="checkbox"
-              checked={buscarWeb}
-              onChange={(e) => onToggleBuscarWeb(e.target.checked)}
-              className="w-4 h-4 text-jorna-600 border-gray-300 rounded focus:ring-jorna-500"
-            />
-            Buscar na web quando fizer sentido
+        <div className="flex items-center justify-center gap-2 mt-3">
+          <input
+            id="buscar-web"
+            type="checkbox"
+            checked={buscarWeb}
+            onChange={(e) => onToggleBuscarWeb(e.target.checked)}
+            className="w-4 h-4 text-jorna-600 border-gray-300 rounded focus:ring-jorna-500"
+          />
+          <label htmlFor="buscar-web" className="text-sm text-gray-600 select-none">
+            Buscar na web (quando necessário)
           </label>
-          <p className="text-[11px] text-gray-500">
-            IA focada para jornalistas
-          </p>
         </div>
+        <p className="text-xs text-gray-500 mt-2 text-center">
+          Inteligência Artificial de alto nível treinada para Jornalistas
+        </p>
       </div>
     </div>
   </div>
@@ -544,7 +544,7 @@ const GuiasView = memo(({
         </div>
         <div className="space-y-3">
           {templates.map(template => (
-            <div key={template.id} className="bg-white rounded-lg shadow p-3 sm:p-4">
+            <div key={template.id} className="bg-white rounded-lg shadow p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="font-semibold mb-1 flex items-center gap-2">
@@ -623,7 +623,7 @@ const GuiasView = memo(({
         </h2>
         <div className="space-y-3">
           {guias.map(guia => (
-            <div key={guia.id} className="bg-white rounded-lg shadow p-3 sm:p-4">
+            <div key={guia.id} className="bg-white rounded-lg shadow p-4">
               <h3 className="font-semibold mb-3">{guia.titulo}</h3>
               <pre className="text-sm text-gray-600 whitespace-pre-wrap font-sans leading-relaxed">
                 {guia.conteudo}
