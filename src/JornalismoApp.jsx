@@ -7,6 +7,7 @@ import { listarTemplates, criarTemplateWorker, atualizarTemplateWorker, deletarT
 import { listarConversas, criarConversaWorker, deletarConversaWorker, listarMensagens, criarMensagemWorker } from './services/chatWorkerService';
 import { listarNotificacoes } from './services/notificationsWorkerService';
 import { getTemplateMeta, upsertTemplateMeta, recordTemplateUsage, removeTemplateMeta } from './services/templateMetaStore';
+import { useDebounce } from './hooks/useDebounce';
 
 const officialDomainSuffixes = [
   '.gov.br',
@@ -151,9 +152,13 @@ const Toast = ({ alert, onClose }) => {
   if (!alert) return null;
   const color = alert.type === 'error' ? 'bg-red-500' : alert.type === 'success' ? 'bg-green-500' : 'bg-jorna-600';
   const label = alert.type === 'success' ? 'Salvo' : (alert.type || 'info');
+  const icon = alert.type === 'error' ? '❌' : alert.type === 'success' ? '✅' : 'ℹ️';
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full shadow-lg text-white text-sm flex items-center gap-2">
-      <span className={`${color} px-2 py-1 rounded-full text-[11px] uppercase tracking-wide`}>{label}</span>
+      <span className={`${color} px-2 py-1 rounded-full text-[11px] uppercase tracking-wide flex items-center gap-1`}>
+        <span>{icon}</span>
+        <span>{label}</span>
+      </span>
       <span>{alert.message}</span>
       <button onClick={onClose} className="ml-2 text-white/80 hover:text-white">×</button>
     </div>
@@ -216,7 +221,7 @@ const HomeView = memo(({ filteredPautas, searchTermPautas, onSearchTermPautasCha
         {filteredPautas.map(pauta => {
           const daysLeft = getDaysUntilDeadline(pauta.deadline);
           return (
-            <div key={pauta.id} className="bg-white rounded-lg shadow p-4 border-l-4 border-jorna-500">
+          <div key={pauta.id} className="bg-white rounded-lg shadow p-3 sm:p-4 border-l-4 border-jorna-500">
               <div className="flex justify-between items-start mb-2 gap-3 flex-col sm:flex-row">
                 <h3 className="font-semibold text-lg flex-1">{pauta.titulo}</h3>
                 <div className="flex gap-2 ml-0 sm:ml-2">
@@ -284,7 +289,7 @@ const FontesView = memo(({ filteredFontes, searchTermFontes, setSearchTermFontes
     ) : (
       <div className="space-y-3">
         {filteredFontes.map(fonte => (
-          <div key={fonte.id} className="bg-white rounded-lg shadow p-4">
+          <div key={fonte.id} className="bg-white rounded-lg shadow p-3 sm:p-4">
             <div className="flex justify-between items-start mb-2 gap-2 flex-col sm:flex-row">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -390,7 +395,8 @@ const ChatbotView = memo(({ messages, messagesLoading, chatInput, onInputChange,
         ))}
       </div>
       <div className="p-4 border-t bg-white">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-2 sm:gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <input
             ref={chatInputRef}
             type="text"
@@ -414,21 +420,22 @@ const ChatbotView = memo(({ messages, messagesLoading, chatInput, onInputChange,
             {loading ? 'Enviando...' : 'Enviar'}
           </button>
         </div>
-        <div className="flex items-center justify-center gap-2 mt-3">
-          <input
-            id="buscar-web"
-            type="checkbox"
-            checked={buscarWeb}
-            onChange={(e) => onToggleBuscarWeb(e.target.checked)}
-            className="w-4 h-4 text-jorna-600 border-gray-300 rounded focus:ring-jorna-500"
-          />
-          <label htmlFor="buscar-web" className="text-sm text-gray-600 select-none">
-            Buscar na web (quando necessário)
-          </label>
+          <div className="flex items-center justify-between">
+            <label htmlFor="buscar-web" className="flex items-center gap-2 text-sm text-gray-600 select-none">
+              <input
+                id="buscar-web"
+                type="checkbox"
+                checked={buscarWeb}
+                onChange={(e) => onToggleBuscarWeb(e.target.checked)}
+                className="w-4 h-4 text-jorna-600 border-gray-300 rounded focus:ring-jorna-500"
+              />
+              Buscar na web quando fizer sentido
+            </label>
+            <p className="text-[11px] text-gray-500">
+              IA focada para jornalistas
+            </p>
+          </div>
         </div>
-        <p className="text-xs text-gray-500 mt-2 text-center">
-          Inteligência Artificial de alto nível treinada para Jornalistas
-        </p>
       </div>
     </div>
   </div>
@@ -456,7 +463,11 @@ const GuiasView = memo(({
   availableTemplateTags,
   onUseTemplate,
   onDuplicateTemplate,
-  onToggleTemplateFavorite
+  onToggleTemplateFavorite,
+  templateSort,
+  onTemplateSortChange,
+  templateExpanded,
+  onToggleTemplateExpanded
 }) => (
     <div className="p-4 pb-20">
       <h1 className="text-2xl font-bold text-jorna-brown mb-6">Guias e Templates</h1>
@@ -466,7 +477,7 @@ const GuiasView = memo(({
           <Search size={20} className="text-green-500" />
           Verificador de Fontes Oficiais
         </h2>
-        <div className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4">
           <p className="text-sm text-gray-600 mb-3">Cole o texto ou URL para verificar a confiabilidade da fonte</p>
           <textarea
             value={verifyText}
@@ -535,6 +546,15 @@ const GuiasView = memo(({
               <option key={tag} value={tag}>{tag}</option>
             ))}
           </select>
+          <select
+            value={templateSort}
+            onChange={(e) => onTemplateSortChange(e.target.value)}
+            className="w-full px-3 py-2 border rounded-lg bg-white"
+          >
+            <option value="favoritos">Favoritos primeiro</option>
+            <option value="recentes">Mais recentes</option>
+            <option value="uso">Mais usados</option>
+          </select>
           <button
             onClick={onToggleTemplateOnlyFavorites}
             className={`w-full px-3 py-2 border rounded-lg ${templateOnlyFavorites ? 'bg-jorna-50 border-jorna-300 text-jorna-700' : 'bg-white text-gray-700'}`}
@@ -544,15 +564,28 @@ const GuiasView = memo(({
         </div>
         <div className="space-y-3">
           {templates.map(template => (
-            <div key={template.id} className="bg-white rounded-lg shadow p-4">
+            <div key={template.id} className="bg-white rounded-lg shadow p-3 sm:p-4">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold mb-1 flex items-center gap-2">
-                    {template.nome}
-                    {template.favorito ? <span className="text-amber-500">★</span> : null}
-                  </h3>
-                  {template.categoria ? (
-                    <span className="text-xs text-gray-500">Categoria: {template.categoria}</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold flex items-center gap-1">
+                      {template.nome}
+                      {template.favorito ? <span className="text-amber-500">★</span> : null}
+                    </h3>
+                    {template.categoria ? (
+                      <span className="px-2 py-1 rounded-full bg-jorna-50 text-jorna-700 text-xs border border-jorna-100">
+                        {template.categoria}
+                      </span>
+                    ) : null}
+                  </div>
+                  {template.tags?.length ? (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {template.tags.map((tag) => (
+                        <span key={tag} className="px-2 py-0.5 bg-gray-100 text-jorna-brown rounded-full text-[11px] border border-gray-200">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
                   ) : null}
                 </div>
                 <div className="text-right text-xs text-gray-500">
@@ -560,19 +593,21 @@ const GuiasView = memo(({
                   <div className="font-medium text-jorna-600">Usos: {template.usageCount || 0}</div>
                 </div>
               </div>
-              <pre className="text-sm text-gray-600 whitespace-pre-wrap font-sans bg-gray-50 p-3 rounded border">
-                {template.conteudo}
+              <pre className="text-sm text-gray-600 whitespace-pre-wrap font-sans bg-gray-50 p-3 rounded border max-h-40 overflow-y-hidden relative">
+                {templateExpanded[template.id] ? template.conteudo : template.conteudo.slice(0, 320)}
+                {!templateExpanded[template.id] && template.conteudo.length > 320 && (
+                  <span className="absolute bottom-1 right-3 text-jorna-600 text-xs bg-gray-50 px-2">...</span>
+                )}
               </pre>
-              {template.tags?.length ? (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {template.tags.map((tag) => (
-                    <span key={tag} className="px-2 py-1 bg-jorna-50 text-jorna-700 rounded-full text-xs border border-jorna-100">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
               <div className="mt-3 flex flex-wrap gap-3 text-sm font-medium">
+                {template.conteudo.length > 320 && (
+                  <button
+                    onClick={() => onToggleTemplateExpanded(template.id)}
+                    className="text-gray-600 hover:text-jorna-700 flex items-center gap-1"
+                  >
+                    {templateExpanded[template.id] ? 'Mostrar menos' : 'Mostrar mais'}
+                  </button>
+                )}
                 <button
                   onClick={() => onTemplateAction(template)}
                   className="text-jorna-500 hover:text-jorna-700"
@@ -623,7 +658,7 @@ const GuiasView = memo(({
         </h2>
         <div className="space-y-3">
           {guias.map(guia => (
-            <div key={guia.id} className="bg-white rounded-lg shadow p-4">
+            <div key={guia.id} className="bg-white rounded-lg shadow p-3 sm:p-4">
               <h3 className="font-semibold mb-3">{guia.titulo}</h3>
               <pre className="text-sm text-gray-600 whitespace-pre-wrap font-sans leading-relaxed">
                 {guia.conteudo}
@@ -858,7 +893,9 @@ const JornalismoApp = () => {
   const [templateSearch, setTemplateSearch] = useState('');
   const [templateTagFilter, setTemplateTagFilter] = useState('todas');
   const [templateOnlyFavorites, setTemplateOnlyFavorites] = useState(false);
+  const [templateSort, setTemplateSort] = useState('favoritos');
   const [availableTemplateTags, setAvailableTemplateTags] = useState([]);
+  const debouncedTemplateSearch = useDebounce(templateSearch, 200);
   const [loadingPautas, setLoadingPautas] = useState(false);
   const [guias] = useState([
     { id: 1, titulo: 'Como Verificar Fontes', conteudo: '1. Cheque credenciais\n2. Busque fontes oficiais\n3. Cruzar informações\n4. Verificar histórico' },
@@ -894,6 +931,7 @@ const JornalismoApp = () => {
     ...getDefaultChatMessages()
   ]);
   const chatListRef = useRef(null);
+  const [templateExpanded, setTemplateExpanded] = useState({});
   const [chatHistory, setChatHistory] = useState([]);
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [chatMessagesLoading, setChatMessagesLoading] = useState(false);
@@ -956,23 +994,23 @@ const JornalismoApp = () => {
   }, [chatMessages]);
 
   const filteredTemplates = useMemo(() => {
-    const term = templateSearch.toLowerCase();
-    return templates
-      .filter((t) => {
-        const haystack = `${t.nome || ''} ${t.conteudo || ''} ${t.categoria || ''} ${(t.tags || []).join(' ')}`.toLowerCase();
-        const matchesTerm = !term || haystack.includes(term);
-        const matchesTag = templateTagFilter === 'todas' || (t.tags || []).includes(templateTagFilter);
-        const matchesFav = !templateOnlyFavorites || t.favorito;
-        return matchesTerm && matchesTag && matchesFav;
-      })
-      .sort((a, b) => {
-        if (a.favorito && !b.favorito) return -1;
-        if (!a.favorito && b.favorito) return 1;
-        const aUse = a.usageCount || 0;
-        const bUse = b.usageCount || 0;
-        return bUse - aUse;
-      });
-  }, [templates, templateSearch, templateTagFilter, templateOnlyFavorites]);
+    const term = (debouncedTemplateSearch || '').toLowerCase();
+    const filtered = templates.filter((t) => {
+      const haystack = `${t.nome || ''} ${t.conteudo || ''} ${t.categoria || ''} ${(t.tags || []).join(' ')}`.toLowerCase();
+      const matchesTerm = !term || haystack.includes(term);
+      const matchesTag = templateTagFilter === 'todas' || (t.tags || []).includes(templateTagFilter);
+      const matchesFav = !templateOnlyFavorites || t.favorito;
+      return matchesTerm && matchesTag && matchesFav;
+    });
+
+    const sorters = {
+      favoritos: (a, b) => Number(b.favorito) - Number(a.favorito),
+      recentes: (a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0),
+      uso: (a, b) => (b.usageCount || 0) - (a.usageCount || 0),
+    };
+    const sorter = sorters[templateSort] || sorters.favoritos;
+    return [...filtered].sort((a, b) => sorter(a, b) || (b.usageCount || 0) - (a.usageCount || 0));
+  }, [templates, debouncedTemplateSearch, templateTagFilter, templateOnlyFavorites, templateSort]);
 
   const handleSetSearchTermPautas = useCallback((value) => {
     setSearchTermPautas(value);
@@ -1714,6 +1752,10 @@ const JornalismoApp = () => {
     setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, ...meta } : t));
   }, []);
 
+  const handleToggleTemplateExpanded = useCallback((templateId) => {
+    setTemplateExpanded(prev => ({ ...prev, [templateId]: !prev[templateId] }));
+  }, []);
+
   const toggleNotifications = useCallback(() => {
     setShowNotifications(prev => !prev);
     setShowProfileMenu(false);
@@ -1982,14 +2024,14 @@ const JornalismoApp = () => {
   }, []);
 
   const filteredPautas = pautas.filter(p => {
-    const matchSearch = p.titulo.toLowerCase().includes(searchTermPautas.toLowerCase());
+    const matchSearch = p.titulo.toLowerCase().includes((debouncedSearchTermPautas || '').toLowerCase());
     const matchFilter = filterStatus === 'todos' || p.status === filterStatus;
     return matchSearch && matchFilter;
   });
 
   const filteredFontes = fontes.filter(f => 
-    f.nome.toLowerCase().includes(searchTermFontes.toLowerCase()) ||
-    f.categoria.toLowerCase().includes(searchTermFontes.toLowerCase())
+    f.nome.toLowerCase().includes((debouncedSearchTermFontes || '').toLowerCase()) ||
+    f.categoria.toLowerCase().includes((debouncedSearchTermFontes || '').toLowerCase())
   );
 
   // HomeView is defined at top-level (memoized) to avoid remounts.
@@ -2278,7 +2320,7 @@ const JornalismoApp = () => {
                   className="hover:bg-jorna-500 p-1 rounded-full transition relative focus:outline-none focus:ring-2 focus:ring-white/60"
                   aria-label="Abrir notificações"
                 >
-                  <Bell size={16} className="sm:size-18" />
+                  <Bell size={16} className="sm:w-[18px] sm:h-[18px]" />
                   {hasUnreadNotifications && (
                     <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] sm:text-xs font-semibold rounded-full px-1.5">
                       {unreadCount}
@@ -2433,47 +2475,51 @@ const JornalismoApp = () => {
             onUseTemplate={handleUseTemplateInChat}
             onDuplicateTemplate={handleDuplicateTemplate}
             onToggleTemplateFavorite={handleToggleTemplateFavorite}
+            templateSort={templateSort}
+            onTemplateSortChange={setTemplateSort}
+            templateExpanded={templateExpanded}
+            onToggleTemplateExpanded={handleToggleTemplateExpanded}
           />
         )}
         {currentView === 'perfil' && <PerfilView />}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg">
-        <div className="flex justify-around p-2 max-w-6xl mx-auto px-2">
+        <div className="flex justify-around py-2.5 px-2 max-w-6xl mx-auto">
           <button
             onClick={() => {setCurrentView('home'); setSearchTermPautas('');}}
-            className={`flex flex-col items-center p-2 rounded-lg transition ${currentView === 'home' ? 'text-jorna-600 bg-jorna-50' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`flex flex-col items-center px-3 py-2 rounded-lg transition ${currentView === 'home' ? 'text-jorna-600 bg-jorna-50' : 'text-gray-600 hover:bg-gray-50'}`}
           >
-            <FileText size={24} />
-            <span className="text-xs mt-1 font-medium">Pautas</span>
+            <FileText size={22} />
+            <span className="text-[11px] mt-1 font-medium">Pautas</span>
           </button>
           <button
             onClick={() => setCurrentView('chatbot')}
-            className={`flex flex-col items-center p-2 rounded-lg transition ${currentView === 'chatbot' ? 'text-jorna-600 bg-jorna-50' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`flex flex-col items-center px-3 py-2 rounded-lg transition ${currentView === 'chatbot' ? 'text-jorna-600 bg-jorna-50' : 'text-gray-600 hover:bg-gray-50'}`}
           >
-            <MessageCircle size={24} />
-            <span className="text-xs mt-1 font-medium">Chat IA</span>
+            <MessageCircle size={22} />
+            <span className="text-[11px] mt-1 font-medium">Chat IA</span>
           </button>
           <button
             onClick={() => {setCurrentView('fontes'); setSearchTermFontes('');}}
-            className={`flex flex-col items-center p-2 rounded-lg transition ${currentView === 'fontes' ? 'text-jorna-600 bg-jorna-50' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`flex flex-col items-center px-3 py-2 rounded-lg transition ${currentView === 'fontes' ? 'text-jorna-600 bg-jorna-50' : 'text-gray-600 hover:bg-gray-50'}`}
           >
-            <Users size={24} />
-            <span className="text-xs mt-1 font-medium">Fontes</span>
+            <Users size={22} />
+            <span className="text-[11px] mt-1 font-medium">Fontes</span>
           </button>
           <button
             onClick={() => setCurrentView('guias')}
-            className={`flex flex-col items-center p-2 rounded-lg transition ${currentView === 'guias' ? 'text-jorna-600 bg-jorna-50' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`flex flex-col items-center px-3 py-2 rounded-lg transition ${currentView === 'guias' ? 'text-jorna-600 bg-jorna-50' : 'text-gray-600 hover:bg-gray-50'}`}
           >
-            <BookOpen size={24} />
-            <span className="text-xs mt-1 font-medium">Guias</span>
+            <BookOpen size={22} />
+            <span className="text-[11px] mt-1 font-medium">Guias</span>
           </button>
           <button
             onClick={() => setCurrentView('perfil')}
-            className={`flex flex-col items-center p-2 rounded-lg transition ${currentView === 'perfil' ? 'text-jorna-600 bg-jorna-50' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`flex flex-col items-center px-3 py-2 rounded-lg transition ${currentView === 'perfil' ? 'text-jorna-600 bg-jorna-50' : 'text-gray-600 hover:bg-gray-50'}`}
           >
-            <User size={24} />
-            <span className="text-xs mt-1 font-medium">Perfil</span>
+            <User size={22} />
+            <span className="text-[11px] mt-1 font-medium">Perfil</span>
           </button>
         </div>
       </div>
@@ -2496,3 +2542,5 @@ const JornalismoApp = () => {
 };
 
 export default JornalismoApp;
+  const debouncedSearchTermPautas = useDebounce(searchTermPautas, 200);
+  const debouncedSearchTermFontes = useDebounce(searchTermFontes, 200);
