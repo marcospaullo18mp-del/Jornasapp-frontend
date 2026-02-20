@@ -5,10 +5,11 @@ import { WorkerApiExamples } from './examples/WorkerApiExamples'
 import './index.css'
 
 function Main() {
+  const showWorkerExamples = import.meta.env.DEV && import.meta.env.VITE_SHOW_WORKER_EXAMPLES === '1'
   return (
     <>
       <JornalismoApp />
-      {import.meta.env.DEV ? <WorkerApiExamples /> : null}
+      {showWorkerExamples ? <WorkerApiExamples /> : null}
     </>
   )
 }

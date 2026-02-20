@@ -1,7 +1,7 @@
 import { apiRequest } from './apiWorker';
 import { localStore } from './localStore';
 
-const USE_LOCAL_STORE = (import.meta.env.VITE_USE_LOCAL_STORE ?? '1') === '1';
+const USE_LOCAL_STORE = (import.meta.env.VITE_USE_LOCAL_STORE ?? '0') === '1';
 const userKey = (userId) => userId || 'local-user';
 
 export async function listarPautas(token, userId) {

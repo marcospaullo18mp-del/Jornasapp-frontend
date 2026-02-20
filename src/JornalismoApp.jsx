@@ -6,7 +6,8 @@ import { listarFontes, criarFonteWorker, atualizarFonteWorker, deletarFonteWorke
 import { listarTemplates, criarTemplateWorker, atualizarTemplateWorker, deletarTemplateWorker } from './services/templatesWorkerService';
 import { listarConversas, criarConversaWorker, deletarConversaWorker, listarMensagens, criarMensagemWorker } from './services/chatWorkerService';
 import { listarNotificacoes } from './services/notificationsWorkerService';
-import { getTemplateMeta, upsertTemplateMeta, recordTemplateUsage, removeTemplateMeta } from './services/templateMetaStore';
+import { getTemplateMeta, upsertTemplateMeta, recordTemplateUsage } from './services/templateMetaStore';
+import { supabase } from './supabaseClient';
 
 const officialDomainSuffixes = [
   '.gov.br',
@@ -17,12 +18,12 @@ const officialDomainSuffixes = [
   '.edu.br',
   '.tc.br'
 ];
-const USE_LOCAL_STORE = (import.meta.env.VITE_USE_LOCAL_STORE ?? '1') !== '0';
+const USE_LOCAL_STORE = (import.meta.env.VITE_USE_LOCAL_STORE ?? '0') !== '0';
 const getUserKey = (user) => user?.id || 'local-user';
+const SUPABASE_NOT_CONFIGURED_MESSAGE = 'Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.';
 
 // Base do backend publicado (ajuste VITE_ACOLHEIA_API_URL no .env para outro ambiente)
 const ACOLHEIA_API_URL = import.meta.env.VITE_ACOLHEIA_API_URL || 'https://jornasa-worker.jornabot.workers.dev/mensagem';
-const ACOLHEIA_API_KEY = import.meta.env.VITE_ACOLHEIA_KEY || '';
 
 const stripHtml = (text = '') =>
   text
@@ -72,17 +73,10 @@ const addProfessionalEmojis = (text = '') => {
 };
 
 const formatBotResponseText = (text = '') => {
-  let formatted = text.trim();
+  let formatted = stripHtml(text).trim();
   if (!formatted) return '';
 
   formatted = addProfessionalEmojis(formatted);
-
-  formatted = formatted.replace(/(^|\n)\*\s*([^*\n]+)/g, (match, prefix, content) => {
-    return `${prefix}<strong>${content.trim()}</strong>`;
-  });
-
-  formatted = formatted.replace(/\*(.*?)\*/g, (_, content) => `<strong>${content.trim()}</strong>`);
-  formatted = formatted.replace(/\n/g, '<br />');
 
   const trimmed = formatted.trim();
   if (trimmed && !/[.!?…>]$/.test(trimmed)) {
@@ -101,25 +95,30 @@ const getFirstAndLastName = (name = '') => {
   return `${parts[0]} ${parts[parts.length - 1]}`;
 };
 
-const mockUsers = [
-  {
-    id: 1,
-    nome: 'Marcos Jornalista',
-    email: 'marcos@jornasa.com',
-    senha: '123456',
-    iniciais: 'MJ'
-  },
-  {
-    id: 2,
-    nome: 'Ana Repórter',
-    email: 'ana@jornasa.com',
-    senha: 'reporter',
-    iniciais: 'AR'
-  }
-];
-const STORAGE_KEY = 'jornabot:user';
-const CURRENT_USER_KEY = 'jernasa:user';
-const makeUserKey = (userId, suffix) => `jornabot:${suffix}:${userId}`;
+const mapSupabaseUser = (user) => {
+  if (!user) return null;
+  const fullName =
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email?.split('@')?.[0] ||
+    'Jornalista';
+  const initials =
+    fullName
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || 'JR';
+
+  return {
+    id: user.id,
+    nome: fullName,
+    email: user.email || '',
+    iniciais: initials,
+    avatarUrl: user.user_metadata?.avatar_url || null,
+  };
+};
+
 const getDefaultPautas = () => [];
 const getDefaultFontes = () => [];
 const getDefaultTemplates = () => [];
@@ -128,7 +127,7 @@ const getDefaultChatMessages = () => ([
     id: 1,
     role: 'bot',
     content: formatBotResponseText('Olá, amorecos! Sou o JornaIA. Posso ajudar a estruturar pautas, sugerir fontes ou organizar seu workflow. Em que posso ajudar hoje?'),
-    isHTML: true
+    isHTML: false
   }
 ]);
 const getDefaultNotifications = () => [];
@@ -380,10 +379,8 @@ const ChatbotView = memo(({ messages, messagesLoading, chatInput, onInputChange,
                   <span className="w-2 h-2 bg-jorna-500 rounded-full animate-pulse" />
                   <span>Apurando...</span>
                 </div>
-              ) : message.isHTML ? (
-                <p className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: message.content }} />
               ) : (
-                <p className="text-sm leading-relaxed">{message.content}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
               )}
             </div>
           </div>
@@ -845,7 +842,6 @@ const GuiasView = memo(({
 const JornalismoApp = () => {
   const [currentView, setCurrentView] = useState('home');
   const [currentUser, setCurrentUser] = useState(null);
-  const [users, setUsers] = useState(mockUsers);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authConfirmPassword, setAuthConfirmPassword] = useState('');
@@ -1004,21 +1000,31 @@ const JornalismoApp = () => {
   }, []);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.email) {
-          setCurrentUser(parsed);
-        }
-        if (parsed?.token) {
-          setAuthToken(parsed.token);
-        }
-      }
-    } catch (error) {
-      console.warn('Nao foi possivel carregar usuario salvo', error);
-      localStorage.removeItem(STORAGE_KEY);
-    }
+    if (!supabase) return;
+
+    let mounted = true;
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!mounted) return;
+        setCurrentUser(mapSupabaseUser(data.session?.user));
+        setAuthToken(data.session?.access_token || null);
+      })
+      .catch((error) => {
+        console.warn('Nao foi possivel carregar a sessao do Supabase', error);
+      });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      setCurrentUser(mapSupabaseUser(session?.user));
+      setAuthToken(session?.access_token || null);
+    });
+
+    return () => {
+      mounted = false;
+      listener?.subscription?.unsubscribe();
+    };
   }, []);
 
   const loadMessagesForConversation = useCallback(async (conversation) => {
@@ -1030,8 +1036,8 @@ const JornalismoApp = () => {
       setChatMessages(msgs && msgs.length ? msgs.map(m => ({
         id: m.id,
         role: m.role,
-        content: m.content,
-        isHTML: m.is_html,
+        content: m.is_html ? stripHtml(m.content) : m.content,
+        isHTML: false,
         pending: false
       })) : getDefaultChatMessages());
       setCurrentChatId(conversation.id);
@@ -1127,6 +1133,15 @@ const JornalismoApp = () => {
   }, [authToken, fetchNotifications, loadMessagesForConversation, ensureConversation, applyTemplateMeta]);
 
   useEffect(() => {
+    if (!currentUser) {
+      setPautas(getDefaultPautas());
+      setFontes(getDefaultFontes());
+      setTemplates(getDefaultTemplates());
+      setChatMessages(getDefaultChatMessages());
+      setChatHistory([]);
+      setNotifications(getDefaultNotifications());
+      return;
+    }
     const userId = getUserKey(currentUser);
     loadUserData(userId);
   }, [currentUser, loadUserData]);
@@ -1145,36 +1160,30 @@ const JornalismoApp = () => {
     });
   }, []);
 
-  const handleLogin = useCallback(() => {
+  const handleLogin = useCallback(async () => {
     setAuthError('');
 
-    const normalizedEmail = authEmail.trim().toLowerCase();
-    const user = users.find((u) => u.email.toLowerCase() === normalizedEmail && u.senha === authPassword);
-
-    if (!user) {
-      setAuthError('E-mail ou senha inválidos.');
+    if (!supabase) {
+      setAuthError(SUPABASE_NOT_CONFIGURED_MESSAGE);
       return;
     }
 
-    const loggedUser = {
-      id: user.id,
-      nome: user.nome,
-      email: user.email,
-      iniciais: user.iniciais,
-      avatarUrl: user.avatarUrl || null,
-    };
-    setCurrentUser(loggedUser);
+    const email = authEmail.trim().toLowerCase();
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(loggedUser));
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password: authPassword,
+      });
+      if (error) throw error;
+      setAuthEmail('');
+      setAuthPassword('');
+      setAuthError('');
     } catch (error) {
-      console.warn('Nao foi possivel salvar usuario no localStorage', error);
+      setAuthError(error?.message || 'E-mail ou senha inválidos.');
     }
-    setAuthEmail('');
-    setAuthPassword('');
-    setAuthError('');
-  }, [authEmail, authPassword, users]);
+  }, [authEmail, authPassword]);
 
-  const handleRegister = useCallback(() => {
+  const handleRegister = useCallback(async () => {
     setAuthError('');
     const name = authName.trim();
     const email = authEmail.trim().toLowerCase();
@@ -1194,92 +1203,61 @@ const JornalismoApp = () => {
       return;
     }
 
-    const alreadyExists = users.some((user) => user.email.toLowerCase() === email);
-    if (alreadyExists) {
-      setAuthError('Já existe um usuário cadastrado com este e-mail.');
+    if (!supabase) {
+      setAuthError(SUPABASE_NOT_CONFIGURED_MESSAGE);
       return;
     }
 
-    const newUser = {
-      id: Date.now(),
-      nome: name,
-      email,
-      senha: authPassword,
-      iniciais: name
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join('') || 'JR'
-    };
-
-    setUsers((prev) => [...prev, newUser]);
-    const savedUser = {
-      id: newUser.id,
-      nome: newUser.nome,
-      email: newUser.email,
-      iniciais: newUser.iniciais,
-      avatarUrl: null,
-    };
-    setCurrentUser(savedUser);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedUser));
+      const { error } = await supabase.auth.signUp({
+        email,
+        password: authPassword,
+        options: {
+          data: {
+            full_name: name,
+            name,
+          },
+        },
+      });
+      if (error) throw error;
+      setIsRegistering(false);
+      setAuthEmail('');
+      setAuthPassword('');
+      setAuthConfirmPassword('');
+      setAuthName('');
+      setUiAlert({ type: 'success', message: 'Conta criada com sucesso.' });
     } catch (error) {
-      console.warn('Nao foi possivel salvar usuario no localStorage', error);
+      setAuthError(error?.message || 'Não foi possível criar sua conta.');
     }
-    setIsRegistering(false);
-    setAuthEmail('');
-    setAuthPassword('');
-    setAuthConfirmPassword('');
-    setAuthName('');
-  }, [authName, authEmail, authPassword, authConfirmPassword, users]);
+  }, [authName, authEmail, authPassword, authConfirmPassword]);
 
-  const handleGoogleCredential = useCallback((credential) => {
+  const handleGoogleCredential = useCallback(async (credential) => {
     if (!credential) {
       setAuthError('Não foi possível usar o login Google.');
       return;
     }
+    if (!supabase) {
+      setAuthError(SUPABASE_NOT_CONFIGURED_MESSAGE);
+      return;
+    }
 
     try {
-      const payloadBase64 = credential.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/');
-      const payload = payloadBase64 ? JSON.parse(atob(payloadBase64)) : null;
-      if (!payload?.email) {
-        setAuthError('Não foi possível validar o Google.');
-        return;
-      }
-
-      const name = payload.name || payload.email || 'Conta Google';
-      const email = payload.email.toLowerCase();
-      const initials =
-        name
-          .split(' ')
-          .filter(Boolean)
-          .slice(0, 2)
-          .map((n) => n[0]?.toUpperCase())
-          .join('') || 'GG';
-
-      const loggedUser = {
-        id: payload.sub || `google-${Date.now()}`,
-        nome: name,
-        email,
-        iniciais: initials,
-        avatarUrl: payload.picture || null,
-        token: credential
-      };
-
-      setCurrentUser(loggedUser);
-      setAuthToken(credential);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(loggedUser));
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: credential,
+      });
+      if (error) throw error;
       setAuthError('');
     } catch (error) {
-      console.warn('Erro ao processar credential do Google', error);
-      setAuthError('Não foi possível validar o Google.');
+      console.warn('Erro ao validar login Google no Supabase', error);
+      setAuthError(error?.message || 'Não foi possível validar o Google.');
     }
   }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!googleButtonRef.current) return;
+    if (!supabase) return;
 
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) return;
@@ -1333,13 +1311,14 @@ const JornalismoApp = () => {
     setAuthConfirmPassword('');
   }, []);
 
-  const handleLogout = useCallback(() => {
-    setCurrentUser(null);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      console.warn('Nao foi possivel limpar usuario salvo', error);
+  const handleLogout = useCallback(async () => {
+    if (supabase) {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.warn('Nao foi possivel encerrar sessao no Supabase', error);
+      }
     }
+    setCurrentUser(null);
     setAuthEmail('');
     setAuthPassword('');
     setAuthConfirmPassword('');
@@ -1359,29 +1338,25 @@ const JornalismoApp = () => {
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = typeof reader.result === 'string' ? reader.result : '';
-      setUsers(prev =>
-        prev.map(user =>
-          user.id === currentUser.id ? { ...user, avatarUrl: dataUrl || null } : user
-        )
-      );
       setCurrentUser(prev => {
-        const updated = prev ? { ...prev, avatarUrl: dataUrl || null } : prev;
-        if (updated) {
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-          } catch (error) {
-            console.warn('Nao foi possivel atualizar avatar no localStorage', error);
-          }
-        }
-        return updated;
+        return prev ? { ...prev, avatarUrl: dataUrl || null } : prev;
       });
+      if (supabase) {
+        supabase.auth.updateUser({
+          data: {
+            avatar_url: dataUrl || null,
+          },
+        }).catch((error) => {
+          console.warn('Nao foi possivel atualizar avatar no Supabase', error);
+        });
+      }
       setShowProfileMenu(false);
       if (event.target) {
         event.target.value = '';
       }
     };
     reader.readAsDataURL(file);
-  }, [authToken, currentUser]);
+  }, [currentUser]);
 
   const handleOpenAvatarPicker = useCallback(() => {
     setShowProfileMenu(false);
@@ -1408,7 +1383,7 @@ const JornalismoApp = () => {
       console.warn('Erro ao criar conversa', error);
       setUiAlert({ type: 'error', message: 'Não foi possível criar nova conversa.' });
     }
-  }, [currentUser]);
+  }, [currentUser, authToken]);
 
   const handleOpenChatFromHistory = useCallback((conversation) => {
     if (!conversation) return;
@@ -1542,11 +1517,11 @@ const JornalismoApp = () => {
       }
     })();
 
-    const finalizeMessage = (content, isHTML = true) => {
+    const finalizeMessage = (content) => {
       setChatMessages(prev =>
         prev.map(message =>
           message.id === pendingId
-            ? { ...message, content, isHTML, pending: false }
+            ? { ...message, content, isHTML: false, pending: false }
             : message
         )
       );
@@ -1554,7 +1529,7 @@ const JornalismoApp = () => {
       setChatLoading(false);
       (async () => {
         try {
-          await criarMensagemWorker(authToken, conversaId, { role: 'bot', content, is_html: isHTML }, userId);
+          await criarMensagemWorker(authToken, conversaId, { role: 'bot', content, is_html: false }, userId);
           updateConversationInHistory(conversaId, {
             title: buildChatTitle([{ role: 'user', content: trimmed }]),
             preview: buildChatPreview([{ content }])
@@ -1567,7 +1542,7 @@ const JornalismoApp = () => {
 
     const cachedReply = chatCacheRef.current.get(normalizedKey);
     if (cachedReply) {
-      finalizeMessage(cachedReply, true);
+      finalizeMessage(cachedReply);
       return;
     }
 
@@ -1576,9 +1551,6 @@ const JornalismoApp = () => {
         const headers = {
           'Content-Type': 'application/json'
         };
-        if (ACOLHEIA_API_KEY) {
-          headers['x-jornasa-key'] = ACOLHEIA_API_KEY;
-        }
         if (authToken) {
           headers['Authorization'] = `Bearer ${authToken}`;
         }
@@ -1598,7 +1570,7 @@ const JornalismoApp = () => {
         const botReply = data?.resposta || 'Recebi sua mensagem! Assim que o backend responder, trarei mais detalhes.';
         const formattedReply = formatBotResponseText(botReply);
         chatCacheRef.current.set(normalizedKey, formattedReply);
-        finalizeMessage(formattedReply, true);
+        finalizeMessage(formattedReply);
       } catch (error) {
         if (controller.signal.aborted) {
           return;
@@ -1606,8 +1578,7 @@ const JornalismoApp = () => {
         console.error('Erro ao enviar mensagem para o backend:', error);
         setUiAlert({ type: 'error', message: 'Não consegui falar com o serviço agora. Confira a URL da API.' });
         finalizeMessage(
-          formatBotResponseText('Não consegui falar com o serviço agora. Confira a URL da API e tente novamente.'),
-          true
+          formatBotResponseText('Não consegui falar com o serviço agora. Confira a URL da API e tente novamente.')
         );
       }
     })();
@@ -2159,6 +2130,11 @@ const JornalismoApp = () => {
             </div>
             <h1 className="text-2xl font-bold text-jorna-brown text-center">Bem-vindo ao JornasaApp</h1>
             <p className="text-gray-600 text-center text-sm">Acesse sua conta para gerenciar pautas e fontes.</p>
+            {!supabase && (
+              <p className="text-xs text-red-600 text-center">
+                {SUPABASE_NOT_CONFIGURED_MESSAGE}
+              </p>
+            )}
           </div>
 
           <form className="mt-8 space-y-4" onSubmit={handleAuthSubmit}>
@@ -2215,7 +2191,8 @@ const JornalismoApp = () => {
             )}
             <button
               type="submit"
-              className="w-full bg-jorna-600 text-white py-3 rounded-lg font-semibold hover:bg-jorna-700 transition"
+              disabled={!supabase}
+              className="w-full bg-jorna-600 text-white py-3 rounded-lg font-semibold hover:bg-jorna-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {isRegistering ? 'Criar conta' : 'Entrar'}
             </button>
